@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useIncidentForm } from "../IncidentFormContext";
 
 export default function Step2EvidenceUpload() {
+const { setCurrentStep } = useIncidentForm();
   const [files, setFiles] = useState<File[]>([]);
 
   return (
@@ -23,8 +25,17 @@ export default function Step2EvidenceUpload() {
           ]);
         }}
       />
+    <div className="flex justify-end border-t border-gray-200 pt-4">
+            <button
+                type="button"
+                className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition hover:bg-blue-700"
+                onClick={() => setCurrentStep(3)}
+            >
+                Continue to Review & Submit →
+            </button>
+            </div>
+        <p>Selected files: {files.length}</p>
 
-      <p>Selected files: {files.length}</p>
     </div>
   );
 }
