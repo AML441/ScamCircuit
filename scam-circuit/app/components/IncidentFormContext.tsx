@@ -15,20 +15,23 @@ export interface IncidentFormState {
   encounterMethod: string;
   otherContactMethod: string;
   contactMethods: string[];
+  messagingPlatforms: string[];
+  messagingUsernames: Record<string, string>;
+  otherMessagingPlatform: string;
 
   contactMethodDetails: {
     website: string;
-    "social-media": string;
-    text: string;
     email: string;
     phone: string;
-    "in-person": string;
     other: string;
   };
 
   amountLost: string;
 
   paymentMethod: string;
+  paymentApp: string;
+  otherPaymentApp: string;
+  paymentHandle: string;
   paymentMethods: string[];
   otherPaymentMethod: string;
   incidentDate: string;
@@ -55,13 +58,13 @@ const initialState: IncidentFormState = {
   currentStep: 1,
   otherContactMethod: "",
   contactMethods: [],
+  messagingPlatforms: [],
+  messagingUsernames: {},
+  otherMessagingPlatform: "",
    contactMethodDetails: {
     website: "",
-    "social-media": "",
-    text: "",
     email: "",
     phone: "",
-    "in-person": "",
     other: "",
   },
   amountLost: "",
@@ -69,6 +72,9 @@ const initialState: IncidentFormState = {
   otherPaymentMethod: "",
   encounterMethod: "",
   paymentMethod: "",
+  paymentApp: "",
+  otherPaymentApp: "",
+  paymentHandle: "",
   incidentDate: "",
   narrative: "",
 
