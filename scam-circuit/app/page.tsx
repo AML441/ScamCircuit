@@ -5,9 +5,9 @@ export default function home() {
    return (
 
     <>
-        <h1 className="text-5xl flex justify-center margin-top-4"> Welcome to ScamCircuit!</h1>
+        <h1 className="text-5xl font-bold flex justify-center mt-10"> Welcome to ScamCircuit!</h1>
           <IncidentFormProvider>
-          <IncidentForm/>
+            <IncidentForm/>
           </IncidentFormProvider>
         
     
