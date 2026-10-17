@@ -87,15 +87,6 @@ export default function Step3ReviewSubmit() {
           <dl className="mt-4 space-y-3 text-sm">
             <div>
               <dt className="font-medium text-gray-500">
-                Incident type
-              </dt>
-              <dd className="mt-1 text-gray-900">
-                {formState.incidentType || "Not provided"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="font-medium text-gray-500">
                 How did you first encounter this incident?
               </dt>
               <dd className="mt-1 text-gray-900">

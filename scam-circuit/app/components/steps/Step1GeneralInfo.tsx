@@ -67,43 +67,6 @@ export default function Step1GeneralInfo() {
       </div>
 
       <form className="space-y-6" onSubmit={handleContinue}>
-        {/* Incident type */}
-        <div>
-          <label
-            htmlFor="incidentType"
-            className="mb-2 block font-medium text-gray-800"
-          >
-            What type of incident occurred?
-          </label>
-
-          <select
-            id="incidentType"
-            name="incidentType"
-            required
-            value={formState.incidentType}
-            onChange={(e) =>
-              updateForm({ incidentType: e.target.value })
-            }
-            className={fieldClass}
-          >
-            <option value="">Select an incident type</option>
-            <option value="online-shopping">
-              Online shopping or marketplace scam
-            </option>
-            <option value="impersonation">Impersonation scam</option>
-            <option value="job">Fake job or employment offer</option>
-            <option value="investment">
-              Investment or cryptocurrency scam
-            </option>
-            <option value="romance">Romance scam</option>
-            <option value="tech-support">Tech support scam</option>
-            <option value="banking">Banking or payment scam</option>
-            <option value="identity-theft">Identity theft</option>
-            <option value="other">Other</option>
-            <option value="unsure">I&apos;m not sure</option>
-          </select>
-        </div>
-
         {/* Contact method checkboxes */}
         <fieldset>
         <legend className="mb-2 block font-medium text-gray-800">
@@ -279,9 +242,6 @@ export default function Step1GeneralInfo() {
             }
             className={fieldClass}
           />
-          <p className="mt-1 text-sm text-gray-500">
-            An approximate date is fine.
-          </p>
         </div>
 
         {/* Incident description */}

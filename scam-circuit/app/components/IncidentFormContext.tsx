@@ -12,7 +12,6 @@ export interface IncidentFormState {
   currentStep: number;
 
   // Step 1: Incident information
-  incidentType: string;
   encounterMethod: string;
   otherContactMethod: string;
   contactMethods: string[];
@@ -65,7 +64,6 @@ const initialState: IncidentFormState = {
   },
   paymentMethods: [],
   otherPaymentMethod: "",
-  incidentType: "",
   encounterMethod: "",
   paymentMethod: "",
   incidentDate: "",
