@@ -20,9 +20,24 @@ export interface IncidentFormState {
   // Step 1: Incident information
   incidentType: string;
   encounterMethod: string;
+  otherContactMethod: string;
+  contactMethods: string[];
+
+  contactMethodDetails: {
+    website: string;
+    "social-media": string;
+    text: string;
+    email: string;
+    phone: string;
+    "in-person": string;
+    other: string;
+  };
+
   outcome: string;
   moneyLost: string;
   paymentMethod: string;
+  paymentMethods: string[];
+  otherPaymentMethod: string;
   incidentDate: string;
   suspiciousIdentifiers: string;
   narrative: string;
@@ -50,7 +65,19 @@ interface IncidentFormContextType {
 
 const initialState: IncidentFormState = {
   currentStep: 1,
-
+  otherContactMethod: "",
+  contactMethods: [],
+   contactMethodDetails: {
+    website: "",
+    "social-media": "",
+    text: "",
+    email: "",
+    phone: "",
+    "in-person": "",
+    other: "",
+  },
+  paymentMethods: [],
+  otherPaymentMethod: "",
   incidentType: "",
   encounterMethod: "",
   outcome: "",

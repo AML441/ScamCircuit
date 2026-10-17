@@ -1,6 +1,57 @@
 "use client";
 
+import { useIncidentForm } from "../IncidentFormContext";
+
+const contactOptions = [
+  { value: "website", label: "Website or online marketplace" },
+  { value: "social-media", label: "Social media" },
+  { value: "text", label: "Text or messaging app" },
+  { value: "email", label: "Email" },
+  { value: "phone", label: "Phone call" },
+  { value: "in-person", label: "In person" },
+  { value: "other", label: "Other" },
+  { value: "unknown", label: "Not sure" },
+];
+
+const fieldClass =
+  "w-full rounded-lg border border-gray-300 p-3 focus:border-blue-500 focus:outline-none";
+
 export default function Step1GeneralInfo() {
+  const { formState, updateForm, setCurrentStep } = useIncidentForm();
+
+  function toggleContactMethod(value: string, checked: boolean) {
+    let updated: string[];
+
+    if (value === "unknown" && checked) {
+      updated = ["unknown"];
+    } else if (checked) {
+      updated = [
+        ...formState.contactMethods.filter(
+          (method) => method !== "unknown"
+        ),
+        value,
+      ];
+    } else {
+      updated = formState.contactMethods.filter(
+        (method) => method !== value
+      );
+    }
+
+    updateForm({ contactMethods: updated });
+
+    if (!updated.includes("other")) {
+      updateForm({ otherContactMethod: "" });
+    }
+  }
+
+  function handleContinue(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!event.currentTarget.reportValidity()) return;
+
+    setCurrentStep(2);
+  }
+
   return (
     <div className="mx-auto max-w-2xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
       <div className="mb-6">
@@ -15,7 +66,7 @@ export default function Step1GeneralInfo() {
         </p>
       </div>
 
-      <form className="space-y-6">
+      <form className="space-y-6" onSubmit={handleContinue}>
         {/* Incident type */}
         <div>
           <label
@@ -24,16 +75,18 @@ export default function Step1GeneralInfo() {
           >
             What type of incident occurred?
           </label>
+
           <select
             id="incidentType"
             name="incidentType"
             required
-            defaultValue=""
-            className="w-full rounded-lg border border-gray-300 p-3 focus:border-blue-500 focus:outline-none"
+            value={formState.incidentType}
+            onChange={(e) =>
+              updateForm({ incidentType: e.target.value })
+            }
+            className={fieldClass}
           >
-            <option value="" disabled>
-              Select an incident type
-            </option>
+            <option value="">Select an incident type</option>
             <option value="online-shopping">
               Online shopping or marketplace scam
             </option>
@@ -51,102 +104,107 @@ export default function Step1GeneralInfo() {
           </select>
         </div>
 
-        {/* How encountered */}
-        <div>
-          <label
-            htmlFor="contactMethod"
-            className="mb-2 block font-medium text-gray-800"
-          >
+        {/* Contact method checkboxes */}
+        <fieldset>
+        <legend className="mb-2 block font-medium text-gray-800">
             How did you first encounter this incident?
-          </label>
-          <select
-            id="contactMethod"
-            name="contactMethod"
-            required
-            defaultValue=""
-            className="w-full rounded-lg border border-gray-300 p-3 focus:border-blue-500 focus:outline-none"
-          >
-            <option value="" disabled>
-              Select how you encountered it
-            </option>
-            <option value="website">Website or online marketplace</option>
-            <option value="social-media">Social media</option>
-            <option value="text">Text or messaging app</option>
-            <option value="email">Email</option>
-            <option value="phone">Phone call</option>
-            <option value="in-person">In person</option>
-            <option value="other">Other</option>
-            <option value="unknown">Not sure</option>
-          </select>
+        </legend>
+
+        <p className="mb-3 text-sm text-gray-500">
+            Select all that apply. Additional fields will appear for each selection.
+        </p>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {contactOptions
+            .filter((option) => option.value !== "unknown")
+            .map((option) => (
+                <label
+                key={option.value}
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50"
+                >
+                <input
+                    type="checkbox"
+                    name="contactMethods"
+                    value={option.value}
+                    checked={formState.contactMethods.includes(option.value)}
+                    onChange={(e) =>
+                    toggleContactMethod(option.value, e.target.checked)
+                    }
+                    className="h-4 w-4 accent-blue-600"
+                />
+                <span className="text-sm text-gray-700">
+                    {option.label}
+                </span>
+                </label>
+            ))}
+
+            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
+            <input
+                type="checkbox"
+                name="contactMethods"
+                value="unknown"
+                checked={formState.contactMethods.includes("unknown")}
+                onChange={(e) =>
+                toggleContactMethod("unknown", e.target.checked)
+                }
+                className="h-4 w-4 accent-blue-600"
+            />
+            <span className="text-sm text-gray-700">Not sure</span>
+            </label>
         </div>
 
-        {/* Outcome */}
-        <fieldset>
-          <legend className="mb-3 font-medium text-gray-800">
-            What happened as a result?
-          </legend>
-          <div className="space-y-3">
-            {[
-              ["money-lost", "I lost money"],
-              [
-                "information-exposed",
-                "My personal or account information was exposed",
-              ],
-              [
-                "attempted",
-                "Someone attempted to scam me, but I prevented it",
-              ],
-              ["other-harm", "I experienced another type of harm"],
-            ].map(([value, label]) => (
-              <label key={value} className="flex items-start gap-3">
+        {contactOptions
+            .filter(
+            (option) =>
+                option.value !== "unknown" &&
+                formState.contactMethods.includes(option.value)
+            )
+            .map((option) => (
+            <div key={option.value} className="mt-4">
+                <label
+                htmlFor={`contact-detail-${option.value}`}
+                className="mb-2 block text-sm font-medium text-gray-800"
+                >
+                {option.value === "other"
+                    ? "Please describe the other contact method"
+                    : `Provide details for ${option.label.toLowerCase()}`}
+                </label>
+
                 <input
-                  type="radio"
-                  name="outcome"
-                  value={value}
-                  required
-                  className="mt-1"
+                id={`contact-detail-${option.value}`}
+                name={`contact-detail-${option.value}`}
+                type="text"
+                value={formState.contactMethodDetails[option.value as keyof typeof formState.contactMethodDetails]}
+                onChange={(e) =>
+                    updateForm({
+                    contactMethodDetails: {
+                        ...formState.contactMethodDetails,
+                        [option.value]: e.target.value,
+                    },
+                    })
+                }
+                placeholder={
+                    option.value === "website"
+                    ? "Enter the website URL"
+                    : option.value === "social-media"
+                        ? "Enter the platform or username"
+                        : option.value === "text"
+                        ? "Enter the messaging app or relevant details"
+                        : option.value === "email"
+                            ? "Enter the email address"
+                            : option.value === "phone"
+                            ? "Enter the phone number"
+                            : option.value === "in-person"
+                                ? "Describe where you met"
+                                : "Describe the contact method"
+                }
+                className={fieldClass}
                 />
-                <span className="text-gray-700">{label}</span>
-              </label>
+            </div>
             ))}
-          </div>
         </fieldset>
 
-        {/* Financial loss */}
-        <div>
-          <label
-            htmlFor="amountLost"
-            className="mb-2 block font-medium text-gray-800"
-          >
-            Approximately how much money was lost? (if applicable)
-          </label>
-          <div className="flex gap-3">
-            <select
-              id="currency"
-              name="currency"
-              aria-label="Currency"
-              defaultValue="USD"
-              className="rounded-lg border border-gray-300 p-3"
-            >
-              <option value="USD">USD ($)</option>
-              <option value="CAD">CAD ($)</option>
-              <option value="GBP">GBP (£)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="other">Other</option>
-            </select>
-            <input
-              id="amountLost"
-              name="amountLost"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="e.g. 250.00"
-              className="min-w-0 flex-1 rounded-lg border border-gray-300 p-3 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        {/* Payment method */}
+        {/* Payment method dropdown */}
         <div>
           <label
             htmlFor="paymentMethod"
@@ -154,11 +212,19 @@ export default function Step1GeneralInfo() {
           >
             How was the money sent? (if applicable)
           </label>
+
           <select
             id="paymentMethod"
             name="paymentMethod"
-            defaultValue=""
-            className="w-full rounded-lg border border-gray-300 p-3 focus:border-blue-500 focus:outline-none"
+            value={formState.paymentMethod}
+            onChange={(e) => {
+              updateForm({ paymentMethod: e.target.value });
+
+              if (e.target.value !== "other") {
+                updateForm({ otherPaymentMethod: "" });
+              }
+            }}
+            className={fieldClass}
           >
             <option value="">Select a payment method</option>
             <option value="bank-transfer">Bank transfer or wire</option>
@@ -171,6 +237,28 @@ export default function Step1GeneralInfo() {
             <option value="other">Other</option>
             <option value="unknown">Not sure</option>
           </select>
+
+          {formState.paymentMethod === "other" && (
+            <div className="mt-3">
+              <label
+                htmlFor="otherPaymentMethod"
+                className="mb-2 block text-sm font-medium text-gray-800"
+              >
+                Please specify the payment method
+              </label>
+              <input
+                id="otherPaymentMethod"
+                name="otherPaymentMethod"
+                type="text"
+                value={formState.otherPaymentMethod}
+                onChange={(e) =>
+                  updateForm({ otherPaymentMethod: e.target.value })
+                }
+                placeholder="Describe the payment method"
+                className={fieldClass}
+              />
+            </div>
+          )}
         </div>
 
         {/* Incident date */}
@@ -185,7 +273,11 @@ export default function Step1GeneralInfo() {
             id="incidentDate"
             name="incidentDate"
             type="date"
-            className="w-full rounded-lg border border-gray-300 p-3 focus:border-blue-500 focus:outline-none"
+            value={formState.incidentDate}
+            onChange={(e) =>
+              updateForm({ incidentDate: e.target.value })
+            }
+            className={fieldClass}
           />
           <p className="mt-1 text-sm text-gray-500">
             An approximate date is fine.
@@ -195,39 +287,47 @@ export default function Step1GeneralInfo() {
         {/* Suspect identifiers */}
         <div>
           <label
-            htmlFor="suspectIdentifier"
+            htmlFor="suspiciousIdentifiers"
             className="mb-2 block font-medium text-gray-800"
           >
             Do you have any information about the person or account involved?
           </label>
           <p className="mb-2 text-sm text-gray-500">
-            Include any known usernames, phone numbers, email addresses,
+            Include known usernames, phone numbers, email addresses,
             websites, or payment handles.
           </p>
           <textarea
-            id="suspectIdentifier"
-            name="suspectIdentifier"
+            id="suspiciousIdentifiers"
+            name="suspiciousIdentifiers"
             rows={3}
+            value={formState.suspiciousIdentifiers}
+            onChange={(e) =>
+              updateForm({ suspiciousIdentifiers: e.target.value })
+            }
             placeholder="e.g. username, phone number, website URL..."
-            className="w-full rounded-lg border border-gray-300 p-3 focus:border-blue-500 focus:outline-none"
+            className={fieldClass}
           />
         </div>
 
         {/* Incident description */}
         <div>
           <label
-            htmlFor="description"
+            htmlFor="narrative"
             className="mb-2 block font-medium text-gray-800"
           >
             Please describe what happened
           </label>
           <textarea
-            id="description"
-            name="description"
+            id="narrative"
+            name="narrative"
             required
             rows={5}
+            value={formState.narrative}
+            onChange={(e) =>
+              updateForm({ narrative: e.target.value })
+            }
             placeholder="Describe how it started, what you were told or asked to do, and what happened next..."
-            className="w-full rounded-lg border border-gray-300 p-3 focus:border-blue-500 focus:outline-none"
+            className={fieldClass}
           />
           <p className="mt-1 text-sm text-gray-500">
             Do not include passwords, authentication codes, full card numbers,
@@ -238,11 +338,8 @@ export default function Step1GeneralInfo() {
         {/* Navigation */}
         <div className="flex justify-end border-t border-gray-200 pt-4">
           <button
-            type="button"
+            type="submit"
             className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition hover:bg-blue-700"
-            onClick={() => {
-              alert("Connect this button to Step 2: Evidence Upload.");
-            }}
           >
             Continue to Evidence Upload →
           </button>
