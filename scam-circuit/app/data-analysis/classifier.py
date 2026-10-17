@@ -13,13 +13,6 @@ from sklearn.metrics import (
    f1_score
 )
 
-
-# from imblearn.over_sampling import SMOTE
-# from imblearn.combine import SMOTETomek
-
-
-
-
 # import dataset
 # for now, importing from Kaggle. Later will import from Tiger Data
 local_path = kagglehub.dataset_download(
@@ -60,9 +53,33 @@ df['high_risk_combo'] = (
 ).astype(int)
 
 
+# Choose features to train on
+features = [
+    "transaction_amount",
+    "hour_of_day",
+    "is_weekend",
+    "num_items",
+    "customer_age",
+    "prev_transactions",
+    "distance_from_home",
+    "device_type",
+    "network_quality",
+    "is_first_transaction",
+    "store_type",
+    "velocity_score",
+    "id",
+    "payment_handle",
+    "email",
+    "phone",
+    "website_url",
+    "other_contact",
+    "date_occurred",
+    "app_contact",
+    "payment_method",
+    "description"
+]
 
-
-X = df.drop("is_fraud", axis=1)
+X = df[features]
 y = df["is_fraud"]
 
 
