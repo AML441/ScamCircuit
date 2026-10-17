@@ -4,6 +4,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useIncidentForm } from "../IncidentFormContext";
+import { contactOptions } from "./Step1GeneralInfo";
 
 export default function Step3ReviewSubmit() {
   const { formState, setCurrentStep } = useIncidentForm();
@@ -53,7 +54,7 @@ export default function Step3ReviewSubmit() {
       {/* Header */}
       <div className="mb-8">
         <p className="text-sm font-semibold text-blue-600">
-          STEP 4 OF 4
+          STEP 3 OF 3
         </p>
 
         <h2 className="mt-2 text-2xl font-bold text-gray-900">
@@ -95,30 +96,28 @@ export default function Step3ReviewSubmit() {
 
             <div>
               <dt className="font-medium text-gray-500">
-                How contact was made
+                How did you first encounter this incident?
               </dt>
               <dd className="mt-1 text-gray-900">
-                {formState.encounterMethod || "Not provided"}
-              </dd>
-            </div>
+                {formState.contactMethods.length > 0 ? (
+                  <ul className="space-y-2">
+                    {formState.contactMethods.map((method) => {
+                      const option = contactOptions.find(
+                        (option) => option.value === method
+                      );
+                      const details = formState.contactMethodDetails[
+                        method as keyof typeof formState.contactMethodDetails
+                      ];
 
-            <div>
-              <dt className="font-medium text-gray-500">
-                Outcome
-              </dt>
-              <dd className="mt-1 text-gray-900">
-                {formState.outcome || "Not provided"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="font-medium text-gray-500">
-                Amount lost
-              </dt>
-              <dd className="mt-1 text-gray-900">
-                {formState.moneyLost
-                  ? `$${formState.moneyLost}`
-                  : "Not provided"}
+                      return (
+                        <li key={method} className="whitespace-pre-wrap break-words">
+                          {option?.label || method}
+                          {details ? `: ${details}` : ""}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : "Not provided"}
               </dd>
             </div>
 
@@ -137,15 +136,6 @@ export default function Step3ReviewSubmit() {
               </dt>
               <dd className="mt-1 text-gray-900">
                 {formState.incidentDate || "Not provided"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="font-medium text-gray-500">
-                Suspicious identifiers
-              </dt>
-              <dd className="mt-1 whitespace-pre-wrap break-words text-gray-900">
-                {formState.suspiciousIdentifiers || "Not provided"}
               </dd>
             </div>
 
@@ -209,61 +199,6 @@ export default function Step3ReviewSubmit() {
           </p>
         </section>
 
-        {/* Step 3: Potential connections */}
-        <section className="rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-gray-900">
-              3. Potential Connections
-            </h3>
-
-            <button
-              type="button"
-              onClick={() => setCurrentStep(3)}
-              className="text-sm font-medium text-blue-600 hover:text-blue-800"
-            >
-              Edit
-            </button>
-          </div>
-
-          <p className="mt-3 text-sm text-gray-600">
-            {formState.identifiersToCheck.length} identifier(s) recorded
-            for review.
-          </p>
-
-          {formState.identifiersToCheck.length > 0 ? (
-            <ul className="mt-3 space-y-2">
-              {formState.identifiersToCheck.map((identifier) => (
-                <li
-                  key={identifier.id}
-                  className="rounded-lg bg-gray-50 p-3"
-                >
-                  <p className="text-xs font-medium uppercase text-gray-500">
-                    {identifier.type}
-                  </p>
-                  <p className="mt-1 break-all text-sm text-gray-900">
-                    {identifier.value}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-3 text-sm text-gray-500">
-              No structured identifiers have been added here.
-            </p>
-          )}
-
-          <p className="mt-3 text-xs text-gray-500">
-            {formState.matchesReviewed
-              ? "The connection review has been marked as reviewed."
-              : "Connection review has not been marked as reviewed."}
-          </p>
-
-          <p className="mt-2 text-xs text-gray-500">
-            A matching identifier alone does not establish wrongdoing
-            or prove that two incidents are connected.
-          </p>
-        </section>
-
         {/* Acknowledgments */}
         <section className="space-y-4 rounded-xl bg-gray-50 p-5">
           <h3 className="font-semibold text-gray-900">
@@ -318,7 +253,7 @@ export default function Step3ReviewSubmit() {
         <div className="flex flex-col-reverse justify-between gap-3 border-t border-gray-200 pt-5 sm:flex-row">
           <button
             type="button"
-            onClick={() => setCurrentStep(3)}
+            onClick={() => setCurrentStep(2)}
             className="rounded-lg border border-gray-300 px-5 py-3 font-medium text-gray-700 hover:bg-gray-50"
           >
             ← Back

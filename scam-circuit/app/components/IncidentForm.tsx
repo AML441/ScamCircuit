@@ -4,7 +4,6 @@ import { useIncidentForm } from "./IncidentFormContext";
 import Step1GeneralInfo from "./steps/Step1GeneralInfo";
 import Step2EvidenceUpload from "./steps/Step2EvidenceUpload";
 import Step3Review from "./steps/Step3ReviewSubmit";
-import Step4ReviewSubmit from "./steps/Step3ReviewSubmit";
 
 export default function IncidentForm() {
      const { formState } = useIncidentForm();

@@ -2,7 +2,7 @@
 
 import { useIncidentForm } from "../IncidentFormContext";
 
-const contactOptions = [
+export const contactOptions = [
   { value: "website", label: "Website or online marketplace" },
   { value: "social-media", label: "Social media" },
   { value: "text", label: "Text or messaging app" },
@@ -59,7 +59,7 @@ export default function Step1GeneralInfo() {
           Report an Incident
         </h2>
         <p className="mt-2 text-sm text-gray-600">
-          Step 1 of 4 — Incident Information
+          Step 1 of 3 — Incident Information
         </p>
         <p className="mt-1 text-sm text-gray-500">
           Tell us what happened. You can provide evidence in the next step.
@@ -100,7 +100,7 @@ export default function Step1GeneralInfo() {
             <option value="banking">Banking or payment scam</option>
             <option value="identity-theft">Identity theft</option>
             <option value="other">Other</option>
-            <option value="unsure">I'm not sure</option>
+            <option value="unsure">I&apos;m not sure</option>
           </select>
         </div>
 
@@ -282,31 +282,6 @@ export default function Step1GeneralInfo() {
           <p className="mt-1 text-sm text-gray-500">
             An approximate date is fine.
           </p>
-        </div>
-
-        {/* Suspect identifiers */}
-        <div>
-          <label
-            htmlFor="suspiciousIdentifiers"
-            className="mb-2 block font-medium text-gray-800"
-          >
-            Do you have any information about the person or account involved?
-          </label>
-          <p className="mb-2 text-sm text-gray-500">
-            Include known usernames, phone numbers, email addresses,
-            websites, or payment handles.
-          </p>
-          <textarea
-            id="suspiciousIdentifiers"
-            name="suspiciousIdentifiers"
-            rows={3}
-            value={formState.suspiciousIdentifiers}
-            onChange={(e) =>
-              updateForm({ suspiciousIdentifiers: e.target.value })
-            }
-            placeholder="e.g. username, phone number, website URL..."
-            className={fieldClass}
-          />
         </div>
 
         {/* Incident description */}
