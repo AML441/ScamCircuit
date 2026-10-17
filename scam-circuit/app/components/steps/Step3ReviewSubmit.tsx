@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useIncidentForm } from "../IncidentFormContext";
 import { contactOptions } from "./Step1GeneralInfo";
+import FormProgress from "../FormProgress";
 
 export default function Step3ReviewSubmit() {
   const { formState, setCurrentStep } = useIncidentForm();
@@ -26,7 +27,7 @@ export default function Step3ReviewSubmit() {
 
   if (submitted) {
     return (
-      <div className="mx-auto max-w-2xl rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+      <div className="mx-auto w-full max-w-5xl rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
         <div className="mb-4 text-5xl">✓</div>
 
         <h2 className="text-2xl font-bold text-gray-900">
@@ -56,7 +57,7 @@ export default function Step3ReviewSubmit() {
         <p className="text-sm font-semibold text-blue-600">
           STEP 3 OF 3
         </p>
-
+        <FormProgress/>
         <h2 className="mt-2 text-2xl font-bold text-gray-900">
           Review & Submit
         </h2>

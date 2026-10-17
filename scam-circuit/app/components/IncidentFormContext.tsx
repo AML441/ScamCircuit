@@ -26,6 +26,8 @@ export interface IncidentFormState {
     other: string;
   };
 
+  amountLost: string;
+
   paymentMethod: string;
   paymentMethods: string[];
   otherPaymentMethod: string;
@@ -62,6 +64,7 @@ const initialState: IncidentFormState = {
     "in-person": "",
     other: "",
   },
+  amountLost: "",
   paymentMethods: [],
   otherPaymentMethod: "",
   encounterMethod: "",

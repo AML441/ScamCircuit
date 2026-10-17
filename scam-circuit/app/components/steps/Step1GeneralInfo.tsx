@@ -1,6 +1,7 @@
 "use client";
 
 import { useIncidentForm } from "../IncidentFormContext";
+import FormProgress from "../FormProgress";
 
 export const contactOptions = [
   { value: "website", label: "Website or online marketplace" },
@@ -14,7 +15,7 @@ export const contactOptions = [
 ];
 
 const fieldClass =
-  "w-full rounded-lg border border-gray-300 p-3 focus:border-blue-500 focus:outline-none";
+  "w-full rounded-lg text-gray-700 border border-gray-300 p-3 focus:border-blue-500 focus:outline-none";
 
 export default function Step1GeneralInfo() {
   const { formState, updateForm, setCurrentStep } = useIncidentForm();
@@ -58,9 +59,7 @@ export default function Step1GeneralInfo() {
         <h2 className="text-2xl font-bold text-gray-900">
           Report an Incident
         </h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Step 1 of 3 — Incident Information
-        </p>
+        <FormProgress />
         <p className="mt-1 text-sm text-gray-500">
           Tell us what happened. You can provide evidence in the next step.
         </p>
@@ -70,7 +69,7 @@ export default function Step1GeneralInfo() {
         {/* Contact method checkboxes */}
         <fieldset>
         <legend className="mb-2 block font-medium text-gray-800">
-            How did you first encounter this incident?
+            How were you contacted?
         </legend>
 
         <p className="mb-3 text-sm text-gray-500">
@@ -95,7 +94,7 @@ export default function Step1GeneralInfo() {
                     }
                     className="h-4 w-4 accent-blue-600"
                 />
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-gray-900">
                     {option.label}
                 </span>
                 </label>
@@ -224,6 +223,38 @@ export default function Step1GeneralInfo() {
           )}
         </div>
 
+        <div>
+            <label
+                htmlFor="amountLost"
+                className="mb-2 block font-medium text-gray-800"
+            >
+                How much money was lost? 
+            </label>
+
+            <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-800">
+                $
+                </span>
+                <input
+                id="amountLost"
+                name="amountLost"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formState.amountLost}
+                onChange={(e) =>
+                    updateForm({ amountLost: e.target.value })
+                }
+                placeholder="0.00"
+                className={`${fieldClass} pl-8`}
+                />
+            </div>
+
+            <p className="mt-1 text-sm text-gray-800">
+                Enter the total amount lost in USD. Leave blank if unknown or not applicable.
+            </p>
+            </div>
+
         {/* Incident date */}
         <div>
           <label
@@ -264,7 +295,7 @@ export default function Step1GeneralInfo() {
             placeholder="Describe how it started, what you were told or asked to do, and what happened next..."
             className={fieldClass}
           />
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-gray-800">
             Do not include passwords, authentication codes, full card numbers,
             or private keys.
           </p>
