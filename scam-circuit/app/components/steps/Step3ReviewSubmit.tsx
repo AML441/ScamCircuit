@@ -27,7 +27,7 @@ export default function Step3ReviewSubmit() {
 
   if (submitted) {
     return (
-      <div className="mx-auto w-full max-w-5xl rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+      <div className="mx-auto max-w-8xl rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
         <div className="mb-4 text-5xl">✓</div>
 
         <h2 className="text-2xl font-bold text-gray-900">
@@ -51,17 +51,13 @@ export default function Step3ReviewSubmit() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+    <div className="mx-auto max-w-5xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
       {/* Header */}
       <div className="mb-8">
-        <p className="text-sm font-semibold text-blue-600">
-          STEP 3 OF 3
-        </p>
         <FormProgress/>
-        <h2 className="mt-2 text-2xl font-bold text-gray-900">
+        {/* <h2 className="mt-2 text-2xl font-bold text-gray-900">
           Review & Submit
-        </h2>
-
+        </h2> */}
         <p className="mt-2 text-sm text-gray-600">
           Review the details below and confirm your report before
           proceeding.
@@ -70,7 +66,7 @@ export default function Step3ReviewSubmit() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Step 1: Incident information */}
-        <section className="rounded-xl border border-gray-200 p-5">
+        <section className="rounded-xl border border-gray-300 p-5">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-lg font-semibold text-gray-900">
               1. Incident Information
@@ -143,7 +139,7 @@ export default function Step3ReviewSubmit() {
         </section>
 
         {/* Step 2: Evidence */}
-        <section className="rounded-xl border border-gray-200 p-5">
+        <section className="rounded-xl border border-gray-300 p-5">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-lg font-semibold text-gray-900">
               2. Evidence
@@ -242,7 +238,7 @@ export default function Step3ReviewSubmit() {
         </div>
 
         {/* Navigation */}
-        <div className="flex flex-col-reverse justify-between gap-3 border-t border-gray-200 pt-5 sm:flex-row">
+        <div className="flex flex-col-reverse justify-between gap-3 border-t border-gray-300 pt-5 sm:flex-row">
           <button
             type="button"
             onClick={() => setCurrentStep(2)}

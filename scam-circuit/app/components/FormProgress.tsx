@@ -16,7 +16,7 @@ export default function FormProgress() {
 
   return (
     <div className="mb-6">
-      <p className="text-sm text-gray-600">
+      <p className="text-xl text-gray-600">
         Step {currentStep} of {steps.length} —{" "}
         {steps[currentStep - 1]}
       </p>

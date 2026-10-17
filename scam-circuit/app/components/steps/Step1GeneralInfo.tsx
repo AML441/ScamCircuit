@@ -54,7 +54,7 @@ export default function Step1GeneralInfo() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="mx-auto w-full max-w-5xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">
           Report an Incident
