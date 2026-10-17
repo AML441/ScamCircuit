@@ -1,16 +1,14 @@
-
 "use client";
 
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useIncidentForm } from "../IncidentFormContext";
-import { contactOptions, messagingPlatforms, paymentApps } from "@/lib/report-options";
-import FormProgress from "../FormProgress";
+import { ErrorNotice, EvidenceList, Icon, StepHeading } from "../FormUI";
+import { contactOptions, messagingPlatforms, paymentApps, paymentMethodOptions } from "@/lib/report-options";
 import { validateReport, validateEvidence, parseUsernames } from "@/lib/report-validation";
 
 export default function Step3ReviewSubmit() {
   const { formState, setCurrentStep, resetForm } = useIncidentForm();
-
   const [accuracyConfirmed, setAccuracyConfirmed] = useState(false);
   const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
   const [submitted, setSubmitted] = useState<string | null>(null);
@@ -47,262 +45,62 @@ export default function Step3ReviewSubmit() {
     }
   }
 
+
   if (submitted) {
     return (
-      <div className="mx-auto w-full max-w-5xl rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-        <div className="mb-4 text-5xl">✓</div>
-
-        <h2 className="text-2xl font-bold text-gray-900">
-          Report Submitted
-        </h2>
-
-        <p className="mt-3 text-gray-600">
-          Your report and attachments have been saved.
-          <span className="mt-2 block">Report ID: {submitted}</span>
-        </p>
-
-        <button
-          type="button"
-          onClick={() => resetForm()}
-          className="mt-6 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
-        >
-          Submit Another Report
-        </button>
+      <div className="success-card" role="status">
+        <span className="success-icon"><Icon name="check" /></span>
+        <div className="eyebrow">REPORT RECEIVED</div>
+        <h1>Thank you for sharing your experience.</h1>
+        <p>Your report and any attached files have been saved. Your attention to the details makes a difference.</p>
+        <div className="report-receipt"><span>Report reference</span><strong>{submitted}</strong><small>Keep this reference for your records.</small></div>
+        <button type="button" onClick={() => resetForm()} className="button button-primary">Submit another report<Icon name="arrowRight" /></button>
       </div>
     );
   }
 
+  const paymentLabel = formState.paymentMethod === "other"
+    ? formState.otherPaymentMethod
+    : paymentMethodOptions.find((option) => option.value === formState.paymentMethod)?.label || "Not provided";
+  const appLabel = formState.paymentApp === "other" ? formState.otherPaymentApp : paymentApps.find((app) => app.value === formState.paymentApp)?.label;
+  const incidentDate = formState.incidentDate
+    ? new Date(`${formState.incidentDate}T00:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }) : "Not provided";
+
   return (
-    <div className="mx-auto max-w-3xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-      {/* Header */}
-      <div className="mb-8">
-        <p className="text-sm font-semibold text-blue-600">
-          STEP 3 OF 3
-        </p>
-        <FormProgress/>
-        <h2 className="mt-2 text-2xl font-bold text-gray-900">
-          Review & Submit
-        </h2>
-
-        <p className="mt-2 text-sm text-gray-600">
-          Review the details below and confirm your report before
-          proceeding.
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6" aria-busy={submitting}>
-        {error && <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</p>}
-        <fieldset disabled={submitting} className="space-y-6">
-        {/* Step 1: Incident information */}
-        <section className="rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-gray-900">
-              1. Incident Information
-            </h3>
-
-            <button
-              type="button"
-              onClick={() => setCurrentStep(1)}
-              className="text-sm font-medium text-blue-600 hover:text-blue-800"
-            >
-              Edit
-            </button>
-          </div>
-
-          <dl className="mt-4 space-y-3 text-sm">
-            <div>
-              <dt className="font-medium text-gray-500">
-                How were you contacted?
-              </dt>
-              <dd className="mt-1 text-gray-900">
-                {formState.contactMethods.length > 0 ? (
-                  <ul className="space-y-2">
-                    {formState.contactMethods.map((method) => {
-                      const option = contactOptions.find(
-                        (option) => option.value === method
-                      );
-                      const details = formState.contactMethodDetails[
-                        method as keyof typeof formState.contactMethodDetails
-                      ];
-
-                      return (
-                        <li key={method} className="whitespace-pre-wrap break-words">
-                          {option?.label || method}
-                          {method === "social-messaging" && (
-                            <ul className="mt-1 space-y-1 pl-4">
-                              {formState.messagingPlatforms.map((value) => {
-                                const name = value === "other"
-                                  ? formState.otherMessagingPlatform
-                                  : messagingPlatforms.find((platform) => platform.value === value)?.label || value;
-                                return <li key={value}>{name}: {parseUsernames(formState.messagingUsernames[value] || "").join(", ")}</li>;
-                              })}
-                            </ul>
-                          )}
-                          {details ? `: ${details}` : ""}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : "Not provided"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="font-medium text-gray-500">
-                Payment method
-              </dt>
-              <dd className="mt-1 text-gray-900">
-                {formState.paymentMethod || "Not provided"}
-                {formState.paymentMethod === "other" && formState.otherPaymentMethod
-                  ? `: ${formState.otherPaymentMethod}` : ""}
-                {formState.paymentMethod === "payment-app" && formState.paymentApp
-                  ? `: ${paymentApps.find((app) => app.value === formState.paymentApp)?.label || formState.paymentApp}` : ""}
-                {formState.paymentMethod === "payment-app" && formState.paymentApp === "other" && formState.otherPaymentApp
-                  ? `: ${formState.otherPaymentApp}` : ""}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="font-medium text-gray-500">Payment handle</dt>
-              <dd className="mt-1 whitespace-pre-wrap break-words text-gray-900">
-                {formState.paymentHandle || "Not provided"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="font-medium text-gray-500">Amount lost (USD)</dt>
-              <dd className="mt-1 text-gray-900">
-                {formState.amountLost !== "" ? `$${formState.amountLost}` : "Not provided"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="font-medium text-gray-500">
-                Incident date
-              </dt>
-              <dd className="mt-1 text-gray-900">
-                {formState.incidentDate || "Not provided"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="font-medium text-gray-500">
-                Incident description
-              </dt>
-              <dd className="mt-1 whitespace-pre-wrap break-words text-gray-900">
-                {formState.narrative || "Not provided"}
-              </dd>
-            </div>
-          </dl>
-        </section>
-
-        {/* Step 2: Evidence */}
-        <section className="rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-gray-900">
-              2. Evidence
-            </h3>
-
-            <button
-              type="button"
-              onClick={() => setCurrentStep(2)}
-              className="text-sm font-medium text-blue-600 hover:text-blue-800"
-            >
-              Edit
-            </button>
-          </div>
-
-          <p className="mt-3 text-sm text-gray-600">
-            {formState.evidenceFiles.length} file(s) selected
-          </p>
-
-          {formState.evidenceFiles.length > 0 ? (
-            <ul className="mt-3 space-y-2">
-              {formState.evidenceFiles.map((file, index) => (
-                <li
-                  key={`${file.name}-${index}`}
-                  className="flex items-start justify-between gap-3 rounded-lg bg-gray-50 p-3"
-                >
-                  <span className="break-all text-sm text-gray-800">
-                    {file.name}
-                  </span>
-
-                  <span className="shrink-0 text-xs text-gray-500">
-                    {(file.size / 1024).toFixed(1)} KB
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-3 text-sm text-gray-500">
-              No evidence files selected.
-            </p>
-          )}
-
-          <p className="mt-3 text-xs text-gray-500">
-            Selected files will be saved with your report when you submit.
-          </p>
-        </section>
-
-        {/* Acknowledgments */}
-        <section className="space-y-4 rounded-xl bg-gray-50 p-5">
-          <h3 className="font-semibold text-gray-900">
-            Confirmations
-          </h3>
-
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              checked={accuracyConfirmed}
-              onChange={(event) =>
-                setAccuracyConfirmed(event.target.checked)
-              }
-              required
-              className="mt-1 h-4 w-4 rounded border-gray-300"
-            />
-
-            <span className="text-sm text-gray-700">
-              I confirm that this report is accurate to the best of
-              my knowledge.
-            </span>
-          </label>
-
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              checked={privacyAcknowledged}
-              onChange={(event) =>
-                setPrivacyAcknowledged(event.target.checked)
-              }
-              required
-              className="mt-1 h-4 w-4 rounded border-gray-300"
-            />
-
-            <span className="text-sm text-gray-700">
-              I understand that the report may contain sensitive
-              information and that evidence should be handled securely.
-            </span>
-          </label>
-        </section>
-
-        {/* Navigation */}
-        <div className="flex flex-col-reverse justify-between gap-3 border-t border-gray-200 pt-5 sm:flex-row">
-          <button
-            type="button"
-            onClick={() => setCurrentStep(2)}
-            className="rounded-lg border border-gray-300 px-5 py-3 font-medium text-gray-700 hover:bg-gray-50"
-          >
-            ← Back
-          </button>
-
-          <button
-            type="submit"
-            disabled={submitting || !accuracyConfirmed || !privacyAcknowledged}
-            className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-          >
-            {submitting ? "Submitting…" : "Submit Report →"}
-          </button>
-        </div>
+    <div className="step-view">
+      <StepHeading step="STEP 03 / REVIEW & SUBMIT" title="One last look before you submit." description="Check that everything looks right. You can go back and edit any details." />
+      <form className="form-card review-card" onSubmit={handleSubmit} aria-busy={submitting}>
+        {error && <div className="form-error"><ErrorNotice message={error} /></div>}
+        <fieldset disabled={submitting} className="review-fieldset">
+          <section className="form-section" aria-labelledby="review-details">
+            <div className="review-section-heading"><h2 id="review-details"><Icon name="file" />Incident details</h2><button type="button" className="edit-button" onClick={() => setCurrentStep(1)}><Icon name="edit" />Edit details</button></div>
+            <dl className="review-details">
+              <div className="review-row"><dt>Contact methods</dt><dd>
+                {formState.contactMethods.length ? <ul className="review-contact-list">{formState.contactMethods.map((method) => (
+                  <li key={method}>
+                    <span className="review-contact-name">{contactOptions.find((option) => option.value === method)?.label || method}</span>
+                    {method === "social-messaging" ? <ul className="review-usernames">{formState.messagingPlatforms.map((value) => <li key={value}><span>{value === "other" ? formState.otherMessagingPlatform : messagingPlatforms.find((platform) => platform.value === value)?.label || value}</span><span>{parseUsernames(formState.messagingUsernames[value] || "").join(", ")}</span></li>)}</ul> : <span className="review-contact-value">{formState.contactMethodDetails[method as keyof typeof formState.contactMethodDetails]}</span>}
+                  </li>
+                ))}</ul> : "Not provided"}
+              </dd></div>
+              <div className="review-row"><dt>Payment method</dt><dd>{paymentLabel}{formState.paymentMethod === "payment-app" && appLabel ? ` · ${appLabel}` : ""}</dd></div>
+              <div className="review-row"><dt>Payment handle</dt><dd className={!formState.paymentHandle ? "value-empty" : ""}>{formState.paymentHandle || "Not provided"}</dd></div>
+              <div className="review-row"><dt>Amount lost</dt><dd className={`review-amount ${formState.amountLost === "" ? "value-empty" : ""}`}>{formState.amountLost !== "" ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(formState.amountLost)) : "Not provided"}{formState.amountLost !== "" && <span className="review-currency">USD</span>}</dd></div>
+              <div className="review-row"><dt>Incident date</dt><dd>{incidentDate}</dd></div>
+              <div className="review-row review-narrative"><dt>What happened</dt><dd>{formState.narrative || "Not provided"}</dd></div>
+            </dl>
+          </section>
+          <section className="form-section" aria-labelledby="review-evidence">
+            <div className="review-section-heading"><h2 id="review-evidence"><Icon name="upload" />Supporting evidence<span className="count-badge">{formState.evidenceFiles.length}</span></h2><button type="button" className="edit-button" onClick={() => setCurrentStep(2)}><Icon name="edit" />Edit files</button></div>
+            {formState.evidenceFiles.length ? <EvidenceList files={formState.evidenceFiles} /> : <p className="empty-files">No files attached.</p>}
+          </section>
+          <section className="form-section confirmation-section" aria-labelledby="confirm-heading">
+            <h2 id="confirm-heading">Before you submit</h2>
+            <p className="section-description">Please confirm both statements to send your report.</p>
+            <label className="confirmation-option"><input type="checkbox" required checked={accuracyConfirmed} onChange={(event) => setAccuracyConfirmed(event.target.checked)} className="option-checkbox" /><span>I confirm that this report is accurate to the best of my knowledge.</span></label>
+            <label className="confirmation-option"><input type="checkbox" required checked={privacyAcknowledged} onChange={(event) => setPrivacyAcknowledged(event.target.checked)} className="option-checkbox" /><span>I understand that this report may contain sensitive information and that evidence should be handled securely.</span></label>
+          </section>
+          <div className="form-actions"><button type="button" className="button button-quiet" onClick={() => setCurrentStep(2)}><Icon name="arrowLeft" />Back to evidence</button><button type="submit" className="button button-primary" disabled={submitting || !accuracyConfirmed || !privacyAcknowledged}>{submitting ? <><span className="button-spinner" />Submitting report…</> : <>Submit report<Icon name="arrowRight" /></>}</button></div>
         </fieldset>
       </form>
     </div>

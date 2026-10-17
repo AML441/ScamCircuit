@@ -1,34 +1,35 @@
-
 "use client";
 
 import { useIncidentForm } from "./IncidentFormContext";
+import { Icon } from "./FormUI";
 
 const steps = [
-  "Incident Information",
-  "Evidence Upload",
-  "Review & Submit",
+  { title: "Incident details", description: "Tell us what happened" },
+  { title: "Supporting evidence", description: "Add files or screenshots" },
+  { title: "Review & submit", description: "Check the details" },
 ];
 
 export default function FormProgress() {
-  const { formState } = useIncidentForm();
-  const currentStep = formState.currentStep;
-  const progress = (currentStep / steps.length) * 100;
-
+  const { formState, setCurrentStep } = useIncidentForm();
   return (
-    <div className="mb-6">
-      <p className="text-sm text-gray-600">
-        Step {currentStep} of {steps.length} —{" "}
-        {steps[currentStep - 1]}
-      </p>
-
-      {/* Progress bar background */}
-      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-200">
-        {/* Progress bar fill */}
-        <div
-          className="h-full rounded-full bg-blue-600 transition-all duration-300"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-    </div>
+    <nav className="form-progress" aria-label="Report progress">
+      <p className="sidebar-label">YOUR REPORT</p>
+      <ol className="step-list">
+        {steps.map((step, index) => {
+          const number = index + 1;
+          const active = number === formState.currentStep;
+          const complete = number < formState.currentStep;
+          return (
+            <li key={step.title} className={`progress-step ${active ? "is-active" : ""} ${complete ? "is-complete" : ""}`} aria-current={active ? "step" : undefined}>
+              <button type="button" className="step-link" disabled={!complete} onClick={() => setCurrentStep(number)}>
+                <span className="step-circle">{complete ? <Icon name="check" /> : `0${number}`}</span>
+                <span className="step-text"><span className="step-name">{step.title}</span><span className="step-description">{step.description}</span></span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <div className="mobile-progress-label">Step {formState.currentStep} of 3 <span>{steps[formState.currentStep - 1].title}</span></div>
+    </nav>
   );
 }

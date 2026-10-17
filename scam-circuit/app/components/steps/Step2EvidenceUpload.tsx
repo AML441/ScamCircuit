@@ -2,49 +2,41 @@
 
 import { useState } from "react";
 import { useIncidentForm } from "../IncidentFormContext";
-import FormProgress from "../FormProgress";
+import { ErrorNotice, EvidenceList, Icon, StepHeading } from "../FormUI";
 import { validateEvidence } from "@/lib/report-validation";
 
 export default function Step2EvidenceUpload() {
   const { formState, setCurrentStep, addEvidenceFiles, removeEvidenceFile } = useIncidentForm();
   const [error, setError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  function addFiles(files: File[]) {
+    const validationError = validateEvidence([...formState.evidenceFiles, ...files]);
+    setError(validationError);
+    if (!validationError) addEvidenceFiles(files);
+  }
 
   return (
-    <div className="mx-auto max-w-2xl rounded-xl border border-gray-200 bg-white p-6">
-      <FormProgress />
-      <h2 className="text-2xl font-bold text-gray-900">Upload Evidence (optional)</h2>
-      <p className="my-3 text-sm text-gray-600">Select up to 10 files, totaling 20 MB or less.</p>
-      <input
-        aria-label="Evidence files (optional)"
-        type="file"
-        multiple
-        className="text-gray-900"
-        onChange={(event) => {
-          const selectedFiles = Array.from(event.target.files ?? []);
-          const validationError = validateEvidence([...formState.evidenceFiles, ...selectedFiles]);
-          setError(validationError);
-          if (!validationError) addEvidenceFiles(selectedFiles);
-          event.target.value = "";
-        }}
-      />
-      {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
-      <p className="my-3 text-sm text-gray-700">Selected files: {formState.evidenceFiles.length}</p>
-      <ul className="mb-4 space-y-2">
-        {formState.evidenceFiles.map((file, index) => (
-          <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 text-sm text-gray-800">
-            <span className="break-all">{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
-            <button
-              type="button"
-              className="text-blue-600 hover:text-blue-800"
-              aria-label={`Remove ${file.name}`}
-              onClick={() => { removeEvidenceFile(index); setError(null); }}
-            >Remove</button>
-          </li>
-        ))}
-      </ul>
-      <div className="flex justify-between gap-3 border-t border-gray-200 pt-4">
-        <button type="button" onClick={() => setCurrentStep(1)} className="rounded-lg border border-gray-300 px-5 py-3 font-medium text-gray-700 hover:bg-gray-50">← Back</button>
-        <button type="button" onClick={() => setCurrentStep(3)} className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700">Continue to Review &amp; Submit →</button>
+    <div className="step-view">
+      <StepHeading step="STEP 02 / SUPPORTING EVIDENCE" title="A little context goes a long way." description="Add screenshots, messages, or receipts that help explain what happened." optional />
+      <div className="form-card">
+        <section className="form-section upload-section" aria-labelledby="upload-title">
+          <div className="upload-section-heading"><h2 id="upload-title">Supporting files</h2><span className="optional">Optional</span></div>
+          <p className="section-description">You can add multiple files, or continue without uploading anything.</p>
+          {error && <ErrorNotice message={error} />}
+          <label htmlFor="evidence-files" className={`upload-zone ${dragging ? "is-dragging" : ""}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); addFiles(Array.from(event.dataTransfer.files)); }}>
+            <input id="evidence-files" className="upload-input" type="file" multiple onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} aria-describedby="upload-limits" />
+            <span className="upload-icon"><Icon name="upload" /></span>
+            <span className="upload-title">{dragging ? "Drop your files here" : "Drag and drop your files here"}</span>
+            <span className="upload-or">or</span>
+            <span className="button button-secondary upload-browse">Choose files<Icon name="arrowRight" /></span>
+            <span className="upload-limits" id="upload-limits">Up to 10 files · 20 MB total</span>
+          </label>
+          <div className="files-heading"><h3>Attached files</h3><span className="count-badge">{formState.evidenceFiles.length}</span></div>
+          {formState.evidenceFiles.length > 0 ? <EvidenceList files={formState.evidenceFiles} onRemove={(index) => { removeEvidenceFile(index); setError(null); }} /> : <p className="empty-files">No files added yet. You can skip this step if you don’t have any.</p>}
+          <div className="help-note"><Icon name="info" /><p>Choose files relevant to your report. Avoid including passwords, authentication codes, or full card numbers.</p></div>
+        </section>
+        <div className="form-actions"><button type="button" onClick={() => setCurrentStep(1)} className="button button-quiet"><Icon name="arrowLeft" />Back to details</button><button type="button" onClick={() => setCurrentStep(3)} className="button button-primary">Continue to review<Icon name="arrowRight" /></button></div>
       </div>
     </div>
   );

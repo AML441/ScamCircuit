@@ -24,3 +24,13 @@ export const paymentApps = [
   { value: "other", label: "Other" },
 ];
 
+export const paymentMethodOptions = [
+  { value: "bank-transfer", label: "Bank transfer or wire" },
+  { value: "payment-app", label: "Payment app" },
+  { value: "credit-card", label: "Credit card" },
+  { value: "debit-card", label: "Debit card" },
+  { value: "crypto", label: "Cryptocurrency" },
+  { value: "gift-card", label: "Gift card" },
+  { value: "cash-check", label: "Cash or check" },
+  { value: "other", label: "Other" },
+];

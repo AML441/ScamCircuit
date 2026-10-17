@@ -1,416 +1,149 @@
 "use client";
 
+import { useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { useIncidentForm } from "../IncidentFormContext";
-import FormProgress from "../FormProgress";
-
-import { contactOptions, messagingPlatforms, paymentApps } from "@/lib/report-options";
+import { ErrorNotice, Field, FormSection, Icon, StepHeading } from "../FormUI";
+import type { IconName } from "../FormUI";
+import { contactOptions, messagingPlatforms, paymentApps, paymentMethodOptions } from "@/lib/report-options";
 import { validateReport } from "@/lib/report-validation";
-import { useState } from "react";
 
-const fieldClass =
-  "w-full rounded-lg text-gray-700 border border-gray-300 p-3 focus:border-blue-500 focus:outline-none";
+const contactIcons: Record<string, IconName> = { website: "globe", "social-messaging": "message", email: "mail", phone: "phone", other: "more" };
+const contactLabels: Record<string, string> = { website: "Website or marketplace", "social-messaging": "Social media or messaging", email: "Email", phone: "Phone call", other: "Other" };
+const contactHints: Record<string, string> = { website: "The site or listing you visited", "social-messaging": "An app, social account, or text", email: "An email you received", phone: "A call from a phone number", other: "Another way of getting in touch" };
+const detailLabels: Record<string, string> = { website: "Website or listing URL", email: "Sender’s email address", phone: "Phone number", other: "Other contact details" };
+const placeholders: Record<string, string> = { website: "https://example.com", email: "name@example.com", phone: "+1 (555) 000-0000", other: "Describe how you were contacted" };
 
 export default function Step1GeneralInfo() {
   const { formState, updateForm, setCurrentStep } = useIncidentForm();
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
 
-  function toggleContactMethod(value: string, checked: boolean) {
-    updateForm({
-      contactMethods: checked
-        ? [...formState.contactMethods, value]
-        : formState.contactMethods.filter((method) => method !== value),
-      ...(value === "social-messaging" && !checked
-        ? { messagingPlatforms: [], messagingUsernames: {}, otherMessagingPlatform: "" }
-        : {}),
-    });
-  }
-
-  function handleContinue(event: React.FormEvent<HTMLFormElement>) {
+  function handleContinue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    if (!event.currentTarget.reportValidity()) return;
-
     const result = validateReport({ ...formState, accuracyConfirmed: true, privacyAcknowledged: true });
     if (!result.ok) {
       setError(result.error);
+      requestAnimationFrame(() => { errorRef.current?.focus(); errorRef.current?.scrollIntoView({ block: "center" }); });
       return;
     }
     setError(null);
     setCurrentStep(2);
   }
 
+  function toggleContactMethod(value: string, checked: boolean) {
+    updateForm({
+      contactMethods: checked ? [...formState.contactMethods, value] : formState.contactMethods.filter((method) => method !== value),
+      ...(value === "social-messaging" && !checked ? { messagingPlatforms: [], messagingUsernames: {}, otherMessagingPlatform: "" } : {}),
+    });
+  }
+
   return (
-    <div className="mx-auto max-w-2xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">
-          Report an Incident
-        </h2>
-        <FormProgress />
-        <p className="mt-1 text-sm text-gray-500">
-          Tell us what happened. You can provide evidence in the next step.
-        </p>
-      </div>
-
-      <form className="space-y-6" onSubmit={handleContinue}>
-        {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-        {/* Contact method checkboxes */}
-        <fieldset>
-        <legend className="mb-2 block font-medium text-gray-800">
-            How were you contacted?
-        </legend>
-
-        <p className="mb-3 text-sm text-gray-500">
-            Select all that apply. Additional fields will appear for each selection.
-        </p>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {contactOptions
-            .map((option) => (
-                <label
-                key={option.value}
-                className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50"
-                >
-                <input
-                    type="checkbox"
-                    name="contactMethods"
-                    value={option.value}
-                    checked={formState.contactMethods.includes(option.value)}
-                    onChange={(e) =>
-                    toggleContactMethod(option.value, e.target.checked)
-                    }
-                    className="h-4 w-4 accent-blue-600"
-                />
-                <span className="text-sm text-gray-900">
-                    {option.label}
-                </span>
+    <div className="step-view">
+      <StepHeading step="STEP 01 / INCIDENT DETAILS" title="Let’s start with what happened." description="Share the details you know. We’ll walk you through the rest." />
+      <form className="form-card" onSubmit={handleContinue}>
+        {error && <div className="form-error" ref={errorRef} tabIndex={-1}><ErrorNotice message={error} /></div>}
+        <FormSection number="01" id="contact-heading" title="How were you contacted?" description="Select all that apply. You can choose more than one.">
+          <fieldset className="contact-fieldset">
+            <legend className="sr-only">Contact methods</legend>
+            <div className="contact-grid">
+              {contactOptions.map((option) => (
+                <label key={option.value} className={`contact-option ${formState.contactMethods.includes(option.value) ? "is-selected" : ""}`}>
+                  <span className="contact-option-icon"><Icon name={contactIcons[option.value]} /></span>
+                  <span className="contact-option-copy"><span className="contact-option-name">{contactLabels[option.value]}</span><span className="contact-option-hint">{contactHints[option.value]}</span></span>
+                  <input type="checkbox" name="contactMethods" value={option.value} checked={formState.contactMethods.includes(option.value)} onChange={(event) => toggleContactMethod(option.value, event.target.checked)} className="option-checkbox" />
                 </label>
-            ))}
+              ))}
+            </div>
+          </fieldset>
 
-        </div>
-
-        {contactOptions
-            .filter(
-            (option) =>
-                formState.contactMethods.includes(option.value)
-            )
-            .map((option) => (
-            <div key={option.value} className="mt-4">
-                {option.value === "social-messaging" && (
-                  <fieldset className="mb-4 rounded-lg border border-gray-200 p-4">
-                    <legend className="px-1 text-sm font-medium text-gray-800">
-                      Which platforms were used?
-                    </legend>
-                    <p className="mb-3 text-sm text-gray-500">Select all that apply.</p>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      {messagingPlatforms.map((platform) => (
-                        <label key={platform.value} className="flex cursor-pointer items-center gap-3 text-sm text-gray-900">
-                          <input
-                            type="checkbox"
-                            name="messagingPlatforms"
-                            value={platform.value}
-                            checked={formState.messagingPlatforms.includes(platform.value)}
-                            onChange={(event) => updateForm({
-                              messagingPlatforms: event.target.checked
-                                ? [...formState.messagingPlatforms, platform.value]
-                                : formState.messagingPlatforms.filter((value) => value !== platform.value),
-                              ...(platform.value === "other" && !event.target.checked
-                                ? { otherMessagingPlatform: "" }
-                                : {}),
-                            })}
-                            className="h-4 w-4 accent-blue-600"
-                          />
-                          {platform.label}
-                        </label>
-                      ))}
-                    </div>
+          {contactOptions.filter((option) => formState.contactMethods.includes(option.value)).map((option) => (
+            <div key={option.value} className="conditional-panel">
+              {option.value === "social-messaging" ? (
+                <fieldset>
+                  <legend className="field-label">Which platforms were used?</legend>
+                  <p className="field-hint platform-hint">Select all that apply.</p>
+                  <div className="platform-options">
+                    {messagingPlatforms.map((platform) => (
+                      <label key={platform.value} className={`platform-chip ${formState.messagingPlatforms.includes(platform.value) ? "is-selected" : ""}`}>
+                        <input type="checkbox" name="messagingPlatforms" value={platform.value} checked={formState.messagingPlatforms.includes(platform.value)} onChange={(event) => updateForm({
+                          messagingPlatforms: event.target.checked ? [...formState.messagingPlatforms, platform.value] : formState.messagingPlatforms.filter((value) => value !== platform.value),
+                          ...(platform.value === "other" && !event.target.checked ? { otherMessagingPlatform: "" } : {}),
+                        })} className="option-checkbox" />
+                        {platform.label}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="conditional-fields">
                     {formState.messagingPlatforms.includes("other") && (
-                      <div className="mt-4">
-                        <label htmlFor="otherMessagingPlatform" className="mb-2 block text-sm font-medium text-gray-800">
-                          Please specify the other platform or app
-                        </label>
-                        <input
-                          id="otherMessagingPlatform"
-                          name="otherMessagingPlatform"
-                          required
-                          type="text"
-                          value={formState.otherMessagingPlatform}
-                          onChange={(event) => updateForm({ otherMessagingPlatform: event.target.value })}
-                          placeholder="Enter the platform or app name"
-                          className={fieldClass}
-                        />
-                      </div>
+                      <Field id="otherMessagingPlatform" label="Other platform or app">
+                        <input id="otherMessagingPlatform" name="otherMessagingPlatform" type="text" required maxLength={200} value={formState.otherMessagingPlatform} onChange={(event) => updateForm({ otherMessagingPlatform: event.target.value })} placeholder="Enter the platform or app name" className="form-control" />
+                      </Field>
                     )}
                     {messagingPlatforms.filter((platform) => formState.messagingPlatforms.includes(platform.value)).map((platform) => (
-                      <div key={platform.value} className="mt-4">
-                        <label htmlFor={`usernames-${platform.value}`} className="mb-2 block text-sm font-medium text-gray-800">
-                          Usernames or account identifiers for {platform.value === "other" ? formState.otherMessagingPlatform || "the other app" : platform.label}
-                        </label>
-                        <input
-                          id={`usernames-${platform.value}`}
-                          name={`usernames-${platform.value}`}
-                          type="text"
-                          required
-                          maxLength={2000}
-                          value={formState.messagingUsernames[platform.value] || ""}
-                          onChange={(event) => updateForm({
-                            messagingUsernames: { ...formState.messagingUsernames, [platform.value]: event.target.value },
-                          })}
-                          aria-describedby={`usernames-help-${platform.value}`}
-                          placeholder="e.g. @username1, @username2"
-                          className={fieldClass}
-                        />
-                        <p id={`usernames-help-${platform.value}`} className="mt-1 text-sm text-gray-600">
-                          Separate multiple usernames or phone numbers with commas.
-                        </p>
-                      </div>
+                      <Field key={platform.value} id={`usernames-${platform.value}`} label={`${platform.value === "other" ? formState.otherMessagingPlatform || "Other app" : platform.label} usernames or account identifiers`} hint="Separate multiple usernames or phone numbers with commas.">
+                        <input id={`usernames-${platform.value}`} name={`usernames-${platform.value}`} type="text" required maxLength={2000} value={formState.messagingUsernames[platform.value] || ""} onChange={(event) => updateForm({ messagingUsernames: { ...formState.messagingUsernames, [platform.value]: event.target.value } })} aria-describedby={`usernames-${platform.value}-hint`} placeholder="@username1, @username2" className="form-control" />
+                      </Field>
                     ))}
-                  </fieldset>
-                )}
-                {option.value !== "social-messaging" && <>
-                <label
-                htmlFor={`contact-detail-${option.value}`}
-                className="mb-2 block text-sm font-medium text-gray-800"
-                >
-                {option.value === "other"
-                    ? "Please describe the other contact method"
-                    : `Provide details for ${option.label.toLowerCase()}`}
-                </label>
-
-                <input
-                id={`contact-detail-${option.value}`}
-                name={`contact-detail-${option.value}`}
-                required
-                type="text"
-                value={formState.contactMethodDetails[option.value as keyof typeof formState.contactMethodDetails]}
-                onChange={(e) =>
-                    updateForm({
-                    contactMethodDetails: {
-                        ...formState.contactMethodDetails,
-                        [option.value]: e.target.value,
-                    },
-                    })
-                }
-                placeholder={
-                    option.value === "website"
-                    ? "Enter the website URL"
-                        : option.value === "email"
-                            ? "Enter the email address"
-                            : option.value === "phone"
-                            ? "Enter the phone number"
-                            : "Describe the contact method"
-                }
-                className={fieldClass}
-                />
-                </>}
-            </div>
-            ))}
-        </fieldset>
-
-        {/* Payment method dropdown */}
-        <div>
-          <label
-            htmlFor="paymentMethod"
-            className="mb-2 block font-medium text-gray-800"
-          >
-            How was the money sent?
-          </label>
-
-          <select
-            id="paymentMethod"
-            name="paymentMethod"
-            required
-            value={formState.paymentMethod}
-            onChange={(e) => {
-              updateForm({ paymentMethod: e.target.value });
-
-              if (e.target.value !== "other") {
-                updateForm({ otherPaymentMethod: "" });
-              }
-              if (e.target.value !== "payment-app") {
-                updateForm({ paymentApp: "", otherPaymentApp: "" });
-              }
-            }}
-            className={fieldClass}
-          >
-            <option value="">Select a payment method</option>
-            <option value="bank-transfer">Bank transfer or wire</option>
-            <option value="payment-app">Payment app</option>
-            <option value="credit-card">Credit card</option>
-            <option value="debit-card">Debit card</option>
-            <option value="crypto">Cryptocurrency</option>
-            <option value="gift-card">Gift card</option>
-            <option value="cash-check">Cash or check</option>
-            <option value="other">Other</option>
-          </select>
-
-          {formState.paymentMethod === "payment-app" && (
-            <div className="mt-3">
-              <label htmlFor="paymentApp" className="mb-2 block text-sm font-medium text-gray-800">
-                Which payment app was used?
-              </label>
-              <select
-                id="paymentApp"
-                name="paymentApp"
-                required
-                value={formState.paymentApp}
-                onChange={(event) => updateForm({
-                  paymentApp: event.target.value,
-                  ...(event.target.value !== "other" ? { otherPaymentApp: "" } : {}),
-                })}
-                className={fieldClass}
-              >
-                <option value="">Select a payment app</option>
-                {paymentApps.map((app) => (
-                  <option key={app.value} value={app.value}>{app.label}</option>
-                ))}
-              </select>
-              {formState.paymentApp === "other" && (
-                <div className="mt-3">
-                  <label htmlFor="otherPaymentApp" className="mb-2 block text-sm font-medium text-gray-800">
-                    Please specify the payment app
-                  </label>
-                  <input
-                    id="otherPaymentApp"
-                    name="otherPaymentApp"
-                    required
-                    type="text"
-                    value={formState.otherPaymentApp}
-                    onChange={(event) => updateForm({ otherPaymentApp: event.target.value })}
-                    placeholder="Enter the payment app name"
-                    className={fieldClass}
-                  />
-                </div>
+                  </div>
+                </fieldset>
+              ) : (
+                <Field id={`contact-detail-${option.value}`} label={detailLabels[option.value]}>
+                  <input id={`contact-detail-${option.value}`} name={`contact-detail-${option.value}`} type="text" inputMode={option.value === "phone" ? "tel" : option.value === "email" ? "email" : option.value === "website" ? "url" : "text"} required maxLength={2000} value={formState.contactMethodDetails[option.value as keyof typeof formState.contactMethodDetails]} onChange={(event) => updateForm({ contactMethodDetails: { ...formState.contactMethodDetails, [option.value]: event.target.value } })} placeholder={placeholders[option.value]} className="form-control" />
+                </Field>
               )}
             </div>
-          )}
+          ))}
+        </FormSection>
 
-          {formState.paymentMethod === "other" && (
-            <div className="mt-3">
-              <label
-                htmlFor="otherPaymentMethod"
-                className="mb-2 block text-sm font-medium text-gray-800"
-              >
-                Please specify the payment method
-              </label>
-              <input
-                id="otherPaymentMethod"
-                name="otherPaymentMethod"
-                required
-                type="text"
-                value={formState.otherPaymentMethod}
-                onChange={(e) =>
-                  updateForm({ otherPaymentMethod: e.target.value })
-                }
-                placeholder="Describe the payment method"
-                className={fieldClass}
-              />
+        <FormSection number="02" id="payment-heading" title="Payment details" description="Tell us how the payment was made, if money was involved.">
+          <Field id="paymentMethod" label="How was the money sent?">
+            <div className="select-wrap">
+              <select id="paymentMethod" name="paymentMethod" required className="form-control" value={formState.paymentMethod} onChange={(event) => updateForm({
+                paymentMethod: event.target.value,
+                ...(event.target.value !== "other" ? { otherPaymentMethod: "" } : {}),
+                ...(event.target.value !== "payment-app" ? { paymentApp: "", otherPaymentApp: "" } : {}),
+              })}>
+                <option value="">Select a payment method</option>
+                {paymentMethodOptions.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}
+              </select>
+              <Icon name="chevron" />
+            </div>
+          </Field>
+
+          {formState.paymentMethod === "payment-app" && (
+            <div className="conditional-panel">
+              <Field id="paymentApp" label="Which payment app was used?">
+                <div className="select-wrap">
+                  <select id="paymentApp" name="paymentApp" required className="form-control" value={formState.paymentApp} onChange={(event) => updateForm({ paymentApp: event.target.value, ...(event.target.value !== "other" ? { otherPaymentApp: "" } : {}) })}>
+                    <option value="">Select a payment app</option>
+                    {paymentApps.map((app) => <option key={app.value} value={app.value}>{app.label}</option>)}
+                  </select><Icon name="chevron" />
+                </div>
+              </Field>
+              {formState.paymentApp === "other" && <Field id="otherPaymentApp" label="Other payment app"><input id="otherPaymentApp" name="otherPaymentApp" type="text" required maxLength={200} value={formState.otherPaymentApp} onChange={(event) => updateForm({ otherPaymentApp: event.target.value })} placeholder="Enter the payment app name" className="form-control" /></Field>}
             </div>
           )}
-        </div>
+          {formState.paymentMethod === "other" && <Field id="otherPaymentMethod" label="Other payment method"><input id="otherPaymentMethod" name="otherPaymentMethod" type="text" required maxLength={200} value={formState.otherPaymentMethod} onChange={(event) => updateForm({ otherPaymentMethod: event.target.value })} placeholder="Describe the payment method" className="form-control" /></Field>}
 
-        <div>
-          <label htmlFor="paymentHandle" className="mb-2 block font-medium text-gray-800">
-            Payment handle (optional)
-          </label>
-          <input
-            id="paymentHandle"
-            name="paymentHandle"
-            type="text"
-            value={formState.paymentHandle}
-            onChange={(event) => updateForm({ paymentHandle: event.target.value })}
-            placeholder="e.g. bank address, PayPal username, or wallet address"
-            className={fieldClass}
-          />
-        </div>
+          <Field id="paymentHandle" label="Payment handle" optional hint="A bank address, payment username, or cryptocurrency wallet address.">
+            <input id="paymentHandle" name="paymentHandle" type="text" maxLength={2000} value={formState.paymentHandle} onChange={(event) => updateForm({ paymentHandle: event.target.value })} placeholder="Enter a handle or address" className="form-control" aria-describedby="paymentHandle-hint" />
+          </Field>
+          <div className="half-width">
+            <Field id="amountLost" label="How much money was lost?" optional hint="Leave blank if unknown or not applicable.">
+              <div className="amount-input"><span className="currency-symbol">$</span><input id="amountLost" name="amountLost" type="number" inputMode="decimal" min="0" step="0.01" value={formState.amountLost} onChange={(event) => updateForm({ amountLost: event.target.value })} placeholder="0.00" className="form-control" aria-describedby="amountLost-hint" /><span className="currency-code">USD</span></div>
+            </Field>
+          </div>
+        </FormSection>
 
-        <div>
-            <label
-                htmlFor="amountLost"
-                className="mb-2 block font-medium text-gray-800"
-            >
-                How much money was lost? (optional)
-            </label>
+        <FormSection number="03" id="story-heading" title="Your experience" description="Add a date and describe the incident in your own words.">
+          <div className="half-width"><Field id="incidentDate" label="When did the incident occur?"><input id="incidentDate" name="incidentDate" type="date" required value={formState.incidentDate} onChange={(event) => updateForm({ incidentDate: event.target.value })} className="form-control" /></Field></div>
+          <Field id="narrative" label="What happened?" hint="Do not include passwords, authentication codes, full card numbers, or private keys.">
+            <textarea id="narrative" name="narrative" required rows={6} maxLength={20000} value={formState.narrative} onChange={(event) => updateForm({ narrative: event.target.value })} placeholder="How did it start? What were you told or asked to do? What happened next?" className="form-control narrative-input" aria-describedby="narrative-hint" />
+          </Field>
+        </FormSection>
 
-            <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-800">
-                $
-                </span>
-                <input
-                id="amountLost"
-                name="amountLost"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formState.amountLost}
-                onChange={(e) =>
-                    updateForm({ amountLost: e.target.value })
-                }
-                placeholder="0.00"
-                className={`${fieldClass} pl-8`}
-                />
-            </div>
-
-            <p className="mt-1 text-sm text-gray-800">
-                Enter the total amount lost in USD. Leave blank if unknown or not applicable.
-            </p>
-            </div>
-
-        {/* Incident date */}
-        <div>
-          <label
-            htmlFor="incidentDate"
-            className="mb-2 block font-medium text-gray-800"
-          >
-            When did the incident occur?
-          </label>
-          <input
-            id="incidentDate"
-            name="incidentDate"
-            required
-            type="date"
-            value={formState.incidentDate}
-            onChange={(e) =>
-              updateForm({ incidentDate: e.target.value })
-            }
-            className={fieldClass}
-          />
-        </div>
-
-        {/* Incident description */}
-        <div>
-          <label
-            htmlFor="narrative"
-            className="mb-2 block font-medium text-gray-800"
-          >
-            Please describe what happened
-          </label>
-          <textarea
-            id="narrative"
-            name="narrative"
-            required
-            rows={5}
-            value={formState.narrative}
-            onChange={(e) =>
-              updateForm({ narrative: e.target.value })
-            }
-            placeholder="Describe how it started, what you were told or asked to do, and what happened next..."
-            className={fieldClass}
-          />
-          <p className="mt-1 text-sm text-gray-800">
-            Do not include passwords, authentication codes, full card numbers,
-            or private keys.
-          </p>
-        </div>
-
-        {/* Navigation */}
-        <div className="flex justify-end border-t border-gray-200 pt-4">
-          <button
-            type="submit"
-            className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition hover:bg-blue-700"
-          >
-            Continue to Evidence Upload →
-          </button>
-        </div>
+        <div className="form-actions"><span className="next-step-note">Next: supporting evidence</span><button type="submit" className="button button-primary">Continue to evidence<Icon name="arrowRight" /></button></div>
       </form>
     </div>
   );
