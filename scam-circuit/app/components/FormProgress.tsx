@@ -16,16 +16,16 @@ export default function FormProgress() {
 
   return (
     <div className="mb-6">
-      <p className="text-sm text-gray-600">
+      {/* <p className="text-xl text-gray-600">
         Step {currentStep} of {steps.length} —{" "}
         {steps[currentStep - 1]}
-      </p>
+      </p> */}
 
       {/* Progress bar background */}
       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-200">
         {/* Progress bar fill */}
         <div
-          className="h-full rounded-full bg-blue-600 transition-all duration-300"
+          className="h-full rounded-full bg-green-700 transition-all duration-300"
           style={{ width: `${progress}%` }}
         />
       </div>

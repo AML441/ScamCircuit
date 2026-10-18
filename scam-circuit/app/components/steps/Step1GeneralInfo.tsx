@@ -3,46 +3,26 @@
 import { useIncidentForm } from "../IncidentFormContext";
 import FormProgress from "../FormProgress";
 
-export const contactOptions = [
-  { value: "website", label: "Website or online marketplace" },
-  { value: "social-media", label: "Social media" },
-  { value: "text", label: "Text or messaging app" },
-  { value: "email", label: "Email" },
-  { value: "phone", label: "Phone call" },
-  { value: "in-person", label: "In person" },
-  { value: "other", label: "Other" },
-  { value: "unknown", label: "Not sure" },
-];
+import { contactOptions, messagingPlatforms, paymentApps } from "@/lib/report-options";
+import { validateReport } from "@/lib/report-validation";
+import { useState } from "react";
 
 const fieldClass =
   "w-full rounded-lg text-gray-700 border border-gray-300 p-3 focus:border-blue-500 focus:outline-none";
 
 export default function Step1GeneralInfo() {
   const { formState, updateForm, setCurrentStep } = useIncidentForm();
+  const [error, setError] = useState<string | null>(null);
 
   function toggleContactMethod(value: string, checked: boolean) {
-    let updated: string[];
-
-    if (value === "unknown" && checked) {
-      updated = ["unknown"];
-    } else if (checked) {
-      updated = [
-        ...formState.contactMethods.filter(
-          (method) => method !== "unknown"
-        ),
-        value,
-      ];
-    } else {
-      updated = formState.contactMethods.filter(
-        (method) => method !== value
-      );
-    }
-
-    updateForm({ contactMethods: updated });
-
-    if (!updated.includes("other")) {
-      updateForm({ otherContactMethod: "" });
-    }
+    updateForm({
+      contactMethods: checked
+        ? [...formState.contactMethods, value]
+        : formState.contactMethods.filter((method) => method !== value),
+      ...(value === "social-messaging" && !checked
+        ? { messagingPlatforms: [], messagingUsernames: {}, otherMessagingPlatform: "" }
+        : {}),
+    });
   }
 
   function handleContinue(event: React.FormEvent<HTMLFormElement>) {
@@ -50,22 +30,29 @@ export default function Step1GeneralInfo() {
 
     if (!event.currentTarget.reportValidity()) return;
 
+    const result = validateReport({ ...formState, accuracyConfirmed: true, privacyAcknowledged: true });
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setError(null);
     setCurrentStep(2);
   }
 
   return (
-    <div className="mx-auto max-w-2xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="mx-auto w-full max-w-5xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">
           Report an Incident
         </h2>
-        <FormProgress />
         <p className="mt-1 text-sm text-gray-500">
           Tell us what happened. You can provide evidence in the next step.
         </p>
+        <FormProgress />
       </div>
 
       <form className="space-y-6" onSubmit={handleContinue}>
+        {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
         {/* Contact method checkboxes */}
         <fieldset>
         <legend className="mb-2 block font-medium text-gray-800">
@@ -73,12 +60,11 @@ export default function Step1GeneralInfo() {
         </legend>
 
         <p className="mb-3 text-sm text-gray-500">
-            Select all that apply. Additional fields will appear for each selection.
+            Select all that apply. 
         </p>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {contactOptions
-            .filter((option) => option.value !== "unknown")
             .map((option) => (
                 <label
                 key={option.value}
@@ -100,29 +86,87 @@ export default function Step1GeneralInfo() {
                 </label>
             ))}
 
-            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
-            <input
-                type="checkbox"
-                name="contactMethods"
-                value="unknown"
-                checked={formState.contactMethods.includes("unknown")}
-                onChange={(e) =>
-                toggleContactMethod("unknown", e.target.checked)
-                }
-                className="h-4 w-4 accent-blue-600"
-            />
-            <span className="text-sm text-gray-700">Not sure</span>
-            </label>
         </div>
 
         {contactOptions
             .filter(
             (option) =>
-                option.value !== "unknown" &&
                 formState.contactMethods.includes(option.value)
             )
             .map((option) => (
             <div key={option.value} className="mt-4">
+                {option.value === "social-messaging" && (
+                  <fieldset className="mb-4 rounded-lg border border-gray-200 p-4">
+                    <legend className="px-1 text-sm font-medium text-gray-800">
+                      Which platforms were used?
+                    </legend>
+                    <p className="mb-3 text-sm text-gray-500">Select all that apply.</p>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {messagingPlatforms.map((platform) => (
+                        <label key={platform.value} className="flex cursor-pointer items-center gap-3 text-sm text-gray-900">
+                          <input
+                            type="checkbox"
+                            name="messagingPlatforms"
+                            value={platform.value}
+                            checked={formState.messagingPlatforms.includes(platform.value)}
+                            onChange={(event) => updateForm({
+                              messagingPlatforms: event.target.checked
+                                ? [...formState.messagingPlatforms, platform.value]
+                                : formState.messagingPlatforms.filter((value) => value !== platform.value),
+                              ...(platform.value === "other" && !event.target.checked
+                                ? { otherMessagingPlatform: "" }
+                                : {}),
+                            })}
+                            className="h-4 w-4 accent-blue-600"
+                          />
+                          {platform.label}
+                        </label>
+                      ))}
+                    </div>
+                    {formState.messagingPlatforms.includes("other") && (
+                      <div className="mt-4">
+                        <label htmlFor="otherMessagingPlatform" className="mb-2 block text-sm font-medium text-gray-800">
+                          Please specify the other platform or app
+                        </label>
+                        <input
+                          id="otherMessagingPlatform"
+                          name="otherMessagingPlatform"
+                          required
+                          type="text"
+                          value={formState.otherMessagingPlatform}
+                          onChange={(event) => updateForm({ otherMessagingPlatform: event.target.value })}
+                          placeholder="Enter the platform or app name"
+                          className={fieldClass}
+                        />
+                      </div>
+                    )}
+                    {messagingPlatforms.filter((platform) => formState.messagingPlatforms.includes(platform.value)).map((platform) => (
+                      <div key={platform.value} className="mt-4">
+                        <label htmlFor={`usernames-${platform.value}`} className="mb-2 block text-sm font-medium text-gray-800">
+                          Usernames or account identifiers for {platform.value === "other" ? formState.otherMessagingPlatform || "the other app" : platform.label}
+                        </label>
+                        <input
+                          id={`usernames-${platform.value}`}
+                          name={`usernames-${platform.value}`}
+                          type="text"
+                          required
+                          maxLength={2000}
+                          value={formState.messagingUsernames[platform.value] || ""}
+                          onChange={(event) => updateForm({
+                            messagingUsernames: { ...formState.messagingUsernames, [platform.value]: event.target.value },
+                          })}
+                          aria-describedby={`usernames-help-${platform.value}`}
+                          placeholder="e.g. @username1, @username2"
+                          className={fieldClass}
+                        />
+                        <p id={`usernames-help-${platform.value}`} className="mt-1 text-sm text-gray-600">
+                          Separate multiple usernames or phone numbers with commas.
+                        </p>
+                      </div>
+                    ))}
+                  </fieldset>
+                )}
+                {option.value !== "social-messaging" && <>
                 <label
                 htmlFor={`contact-detail-${option.value}`}
                 className="mb-2 block text-sm font-medium text-gray-800"
@@ -135,6 +179,7 @@ export default function Step1GeneralInfo() {
                 <input
                 id={`contact-detail-${option.value}`}
                 name={`contact-detail-${option.value}`}
+                required
                 type="text"
                 value={formState.contactMethodDetails[option.value as keyof typeof formState.contactMethodDetails]}
                 onChange={(e) =>
@@ -148,20 +193,15 @@ export default function Step1GeneralInfo() {
                 placeholder={
                     option.value === "website"
                     ? "Enter the website URL"
-                    : option.value === "social-media"
-                        ? "Enter the platform or username"
-                        : option.value === "text"
-                        ? "Enter the messaging app or relevant details"
                         : option.value === "email"
                             ? "Enter the email address"
                             : option.value === "phone"
                             ? "Enter the phone number"
-                            : option.value === "in-person"
-                                ? "Describe where you met"
-                                : "Describe the contact method"
+                            : "Describe the contact method"
                 }
                 className={fieldClass}
                 />
+                </>}
             </div>
             ))}
         </fieldset>
@@ -172,18 +212,22 @@ export default function Step1GeneralInfo() {
             htmlFor="paymentMethod"
             className="mb-2 block font-medium text-gray-800"
           >
-            How was the money sent? (if applicable)
+            How was the money sent?
           </label>
 
           <select
             id="paymentMethod"
             name="paymentMethod"
+            required
             value={formState.paymentMethod}
             onChange={(e) => {
               updateForm({ paymentMethod: e.target.value });
 
               if (e.target.value !== "other") {
                 updateForm({ otherPaymentMethod: "" });
+              }
+              if (e.target.value !== "payment-app") {
+                updateForm({ paymentApp: "", otherPaymentApp: "" });
               }
             }}
             className={fieldClass}
@@ -197,8 +241,48 @@ export default function Step1GeneralInfo() {
             <option value="gift-card">Gift card</option>
             <option value="cash-check">Cash or check</option>
             <option value="other">Other</option>
-            <option value="unknown">Not sure</option>
           </select>
+
+          {formState.paymentMethod === "payment-app" && (
+            <div className="mt-3">
+              <label htmlFor="paymentApp" className="mb-2 block text-sm font-medium text-gray-800">
+                Which payment app was used?
+              </label>
+              <select
+                id="paymentApp"
+                name="paymentApp"
+                required
+                value={formState.paymentApp}
+                onChange={(event) => updateForm({
+                  paymentApp: event.target.value,
+                  ...(event.target.value !== "other" ? { otherPaymentApp: "" } : {}),
+                })}
+                className={fieldClass}
+              >
+                <option value="">Select a payment app</option>
+                {paymentApps.map((app) => (
+                  <option key={app.value} value={app.value}>{app.label}</option>
+                ))}
+              </select>
+              {formState.paymentApp === "other" && (
+                <div className="mt-3">
+                  <label htmlFor="otherPaymentApp" className="mb-2 block text-sm font-medium text-gray-800">
+                    Please specify the payment app
+                  </label>
+                  <input
+                    id="otherPaymentApp"
+                    name="otherPaymentApp"
+                    required
+                    type="text"
+                    value={formState.otherPaymentApp}
+                    onChange={(event) => updateForm({ otherPaymentApp: event.target.value })}
+                    placeholder="Enter the payment app name"
+                    className={fieldClass}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {formState.paymentMethod === "other" && (
             <div className="mt-3">
@@ -211,6 +295,7 @@ export default function Step1GeneralInfo() {
               <input
                 id="otherPaymentMethod"
                 name="otherPaymentMethod"
+                required
                 type="text"
                 value={formState.otherPaymentMethod}
                 onChange={(e) =>
@@ -224,11 +309,26 @@ export default function Step1GeneralInfo() {
         </div>
 
         <div>
+          <label htmlFor="paymentHandle" className="mb-2 block font-medium text-gray-800">
+            Payment handle (optional)
+          </label>
+          <input
+            id="paymentHandle"
+            name="paymentHandle"
+            type="text"
+            value={formState.paymentHandle}
+            onChange={(event) => updateForm({ paymentHandle: event.target.value })}
+            placeholder="e.g. bank address, PayPal username, or wallet address"
+            className={fieldClass}
+          />
+        </div>
+
+        <div>
             <label
                 htmlFor="amountLost"
                 className="mb-2 block font-medium text-gray-800"
             >
-                How much money was lost? 
+                How much money was lost? (optional)
             </label>
 
             <div className="relative">
@@ -266,6 +366,7 @@ export default function Step1GeneralInfo() {
           <input
             id="incidentDate"
             name="incidentDate"
+            required
             type="date"
             value={formState.incidentDate}
             onChange={(e) =>
@@ -305,7 +406,7 @@ export default function Step1GeneralInfo() {
         <div className="flex justify-end border-t border-gray-200 pt-4">
           <button
             type="submit"
-            className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition hover:bg-blue-700"
+            className="rounded-lg bg-green-700 px-6 py-3 font-medium text-white transition hover:bg-green-800"
           >
             Continue to Evidence Upload →
           </button>

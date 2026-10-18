@@ -4,73 +4,93 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useIncidentForm } from "../IncidentFormContext";
-import { contactOptions } from "./Step1GeneralInfo";
+import { contactOptions, messagingPlatforms, paymentApps } from "@/lib/report-options";
 import FormProgress from "../FormProgress";
+import { validateReport, validateEvidence, parseUsernames } from "@/lib/report-validation";
 
 export default function Step3ReviewSubmit() {
-  const { formState, setCurrentStep } = useIncidentForm();
+  const { formState, setCurrentStep, resetForm } = useIncidentForm();
 
   const [accuracyConfirmed, setAccuracyConfirmed] = useState(false);
   const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    if (!accuracyConfirmed || !privacyAcknowledged) {
+    if (submitting) return;
+    const report = { ...formState, accuracyConfirmed, privacyAcknowledged };
+    const validation = validateReport(report);
+    const fileError = validateEvidence(formState.evidenceFiles);
+    if (!validation.ok || fileError) {
+      setError(!validation.ok ? validation.error : fileError);
       return;
     }
-
-    // Demo only: no report is sent or saved yet.
-    setSubmitted(true);
+    setSubmitting(true);
+    setError(null);
+    try {
+      const body = new FormData();
+      // Send only report inputs; files travel in separate multipart fields.
+      const { evidenceFiles, ...fields } = report;
+      body.append("report", JSON.stringify(fields));
+      evidenceFiles.forEach((file) => body.append("files", file));
+      const response = await fetch("/api/reports", { method: "POST", body });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Your report could not be saved.");
+      if (typeof result.reportId !== "string") throw new Error("The server did not confirm your report. Please try again.");
+      setSubmitted(result.reportId);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Your report could not be saved. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (submitted) {
     return (
-      <div className="mx-auto w-full max-w-5xl rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+      <div className="mx-auto max-w-8xl rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
         <div className="mb-4 text-5xl">✓</div>
 
         <h2 className="text-2xl font-bold text-gray-900">
-          Demo Report Reviewed
+          Report Submitted
         </h2>
 
         <p className="mt-3 text-gray-600">
-          Your report passed the demo confirmation step, but it has
-          not been sent to a server or saved to a database.
+          Your report and attachments have been saved.
+          <span className="mt-2 block">Report ID: {submitted}</span>
         </p>
 
         <button
           type="button"
-          onClick={() => setCurrentStep(1)}
+          onClick={() => resetForm()}
           className="mt-6 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
         >
-          Back to Start
+          Submit Another Report
         </button>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+    <div className="mx-auto max-w-5xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
       {/* Header */}
       <div className="mb-8">
-        <p className="text-sm font-semibold text-blue-600">
-          STEP 3 OF 3
-        </p>
         <FormProgress/>
-        <h2 className="mt-2 text-2xl font-bold text-gray-900">
+        {/* <h2 className="mt-2 text-2xl font-bold text-gray-900">
           Review & Submit
-        </h2>
-
+        </h2> */}
         <p className="mt-2 text-sm text-gray-600">
           Review the details below and confirm your report before
           proceeding.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6" aria-busy={submitting}>
+        {error && <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</p>}
+        <fieldset disabled={submitting} className="space-y-6">
         {/* Step 1: Incident information */}
-        <section className="rounded-xl border border-gray-200 p-5">
+        <section className="rounded-xl border border-gray-300 p-5">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-lg font-semibold text-gray-900">
               1. Incident Information
@@ -88,7 +108,7 @@ export default function Step3ReviewSubmit() {
           <dl className="mt-4 space-y-3 text-sm">
             <div>
               <dt className="font-medium text-gray-500">
-                How did you first encounter this incident?
+                How were you contacted?
               </dt>
               <dd className="mt-1 text-gray-900">
                 {formState.contactMethods.length > 0 ? (
@@ -104,6 +124,16 @@ export default function Step3ReviewSubmit() {
                       return (
                         <li key={method} className="whitespace-pre-wrap break-words">
                           {option?.label || method}
+                          {method === "social-messaging" && (
+                            <ul className="mt-1 space-y-1 pl-4">
+                              {formState.messagingPlatforms.map((value) => {
+                                const name = value === "other"
+                                  ? formState.otherMessagingPlatform
+                                  : messagingPlatforms.find((platform) => platform.value === value)?.label || value;
+                                return <li key={value}>{name}: {parseUsernames(formState.messagingUsernames[value] || "").join(", ")}</li>;
+                              })}
+                            </ul>
+                          )}
                           {details ? `: ${details}` : ""}
                         </li>
                       );
@@ -119,6 +149,26 @@ export default function Step3ReviewSubmit() {
               </dt>
               <dd className="mt-1 text-gray-900">
                 {formState.paymentMethod || "Not provided"}
+                {formState.paymentMethod === "other" && formState.otherPaymentMethod
+                  ? `: ${formState.otherPaymentMethod}` : ""}
+                {formState.paymentMethod === "payment-app" && formState.paymentApp
+                  ? `: ${paymentApps.find((app) => app.value === formState.paymentApp)?.label || formState.paymentApp}` : ""}
+                {formState.paymentMethod === "payment-app" && formState.paymentApp === "other" && formState.otherPaymentApp
+                  ? `: ${formState.otherPaymentApp}` : ""}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="font-medium text-gray-500">Payment handle</dt>
+              <dd className="mt-1 whitespace-pre-wrap break-words text-gray-900">
+                {formState.paymentHandle || "Not provided"}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="font-medium text-gray-500">Amount lost (USD)</dt>
+              <dd className="mt-1 text-gray-900">
+                {formState.amountLost !== "" ? `$${formState.amountLost}` : "Not provided"}
               </dd>
             </div>
 
@@ -143,7 +193,7 @@ export default function Step3ReviewSubmit() {
         </section>
 
         {/* Step 2: Evidence */}
-        <section className="rounded-xl border border-gray-200 p-5">
+        <section className="rounded-xl border border-gray-300 p-5">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-lg font-semibold text-gray-900">
               2. Evidence
@@ -186,8 +236,7 @@ export default function Step3ReviewSubmit() {
           )}
 
           <p className="mt-3 text-xs text-gray-500">
-            These files are currently held in browser state. They have
-            not been uploaded to secure storage.
+            Selected files will be saved with your report when you submit.
           </p>
         </section>
 
@@ -232,17 +281,8 @@ export default function Step3ReviewSubmit() {
           </label>
         </section>
 
-        {/* Demo submission notice */}
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm text-amber-900">
-            <strong>Prototype notice:</strong> Submitting this form
-            will only show a local confirmation. No report will be
-            transmitted, stored, or shared.
-          </p>
-        </div>
-
         {/* Navigation */}
-        <div className="flex flex-col-reverse justify-between gap-3 border-t border-gray-200 pt-5 sm:flex-row">
+        <div className="flex flex-col-reverse justify-between gap-3 border-t border-gray-300 pt-5 sm:flex-row">
           <button
             type="button"
             onClick={() => setCurrentStep(2)}
@@ -253,12 +293,13 @@ export default function Step3ReviewSubmit() {
 
           <button
             type="submit"
-            disabled={!accuracyConfirmed || !privacyAcknowledged}
+            disabled={submitting || !accuracyConfirmed || !privacyAcknowledged}
             className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
           >
-            Submit Report →
+            {submitting ? "Submitting…" : "Submit Report →"}
           </button>
         </div>
+        </fieldset>
       </form>
     </div>
   );
