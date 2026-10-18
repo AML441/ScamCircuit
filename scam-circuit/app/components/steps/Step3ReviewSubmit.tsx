@@ -59,7 +59,6 @@ export default function Step3ReviewSubmit() {
 
         <p className="mt-3 text-gray-700">
           Your report and attachments have been saved.
-          <span className="mt-2 block">Report ID: {submitted}</span>
         </p>
 
         <button
