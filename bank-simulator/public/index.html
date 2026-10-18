@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>Harbor · Payment simulator</title>
-  <meta name="description" content="A local payment simulator connected to ScamCircuit recipient report lookup.">
+  <meta name="description" content="A local payment simulator connected to ScamCircuit reports and fraud prediction.">
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/app.mjs"></script>
 </head>
@@ -32,7 +32,7 @@
       <div class="nav-active"><svg aria-hidden="true" class="icon"><use href="#i-card"/></svg>Payments<span>01</span></div>
       <div class="account-card"><div class="account-card-top"><span>Everyday checking</span><svg aria-hidden="true" class="icon"><use href="#i-card"/></svg></div><span class="account-digits">•••• 4821</span><span class="balance-label">Demo available balance</span><strong>$12,480<span>.00</span></strong><div class="account-card-bottom"><span>USD</span><span>HARBOR DEMO</span></div></div>
       <div class="sidebar-title flow-title">HOW IT WORKS</div>
-      <ol class="flow-list" id="flow-list"><li class="active" data-step="1"><span class="flow-number">1</span><div><strong>Enter payment details</strong><small>Choose a recipient and amount</small></div></li><li data-step="2"><span class="flow-number">2</span><div><strong>Check prior reports</strong><small>Look up matching identifiers</small></div></li><li data-step="3"><span class="flow-number">3</span><div><strong>See the result</strong><small>Review matches before proceeding</small></div></li></ol>
+      <ol class="flow-list" id="flow-list"><li class="active" data-step="1"><span class="flow-number">1</span><div><strong>Enter payment details</strong><small>Choose a recipient and amount</small></div></li><li data-step="2"><span class="flow-number">2</span><div><strong>Check reports and fraud risk</strong><small>Run the model if no reports match</small></div></li><li data-step="3"><span class="flow-number">3</span><div><strong>See the result</strong><small>Review the payment decision</small></div></li></ol>
       <div class="sidebar-note"><svg aria-hidden="true" class="icon"><use href="#i-info"/></svg><p>This is a local demo.<br>No money is moved.</p></div>
     </aside>
     <main>
@@ -43,23 +43,24 @@
           <form id="payment-form" class="card payment-card">
             <fieldset id="payment-fields">
               <div class="section-heading"><span class="section-icon"><svg aria-hidden="true" class="icon"><use href="#i-user"/></svg></span><div><h2>Who are you paying?</h2><p>Enter the destination account details.</p></div></div>
-              <div class="presets"><span>Quick test</span><button type="button" id="load-test">Your reported recipient</button><button type="button" id="load-new">New recipient</button></div>
+              <div class="presets"><span>Quick test</span><button type="button" id="load-test">Your reported recipient</button><button type="button" id="load-new">New recipient</button><button type="button" id="load-fraud">Fraud test</button></div>
               <div class="field"><label for="payment-handle">Recipient payment handle <span class="required-dot">*</span></label><input id="payment-handle" name="paymentHandle" value="test_handle" required maxlength="2000" autocomplete="off" spellcheck="false" placeholder="e.g. @username or account ID"><small>The recipient’s account ID or payment handle.</small></div>
               <div class="field-grid"><div class="field"><label for="recipient-email">Recipient email <span class="optional">Optional</span></label><input id="recipient-email" name="email" type="email" value="test@gmail.com" maxlength="2000" autocomplete="off" placeholder="name@example.com"></div><div class="field"><label for="recipient-phone">Recipient phone <span class="optional">Optional</span></label><input id="recipient-phone" name="phone" type="tel" maxlength="80" autocomplete="off" placeholder="+1 (301) 555-0189"><small>Include a country code if known.</small></div></div>
               <div class="section-divider"></div>
               <div class="section-heading"><span class="section-icon"><svg aria-hidden="true" class="icon"><use href="#i-card"/></svg></span><div><h2>Payment details</h2><p>Send from your demo checking account.</p></div></div>
               <div class="field-label">From account</div><div class="from-account"><span class="mini-account"><svg aria-hidden="true" class="icon"><use href="#i-card"/></svg></span><div><strong>Everyday checking <span>•• 4821</span></strong><small>$12,480.00 demo balance</small></div><span class="account-selected"><svg aria-hidden="true" class="icon"><use href="#i-check"/></svg></span></div>
-              <div class="field-grid amount-grid"><div class="field"><label for="payment-amount">Amount <span class="required-dot">*</span></label><div class="amount-input"><span>$</span><input id="payment-amount" name="amount" type="number" min="0.01" max="100000" step="0.01" inputmode="decimal" required value="250.00"><span>USD</span></div></div><div class="field"><label for="payment-description">Memo <span class="optional">Optional</span></label><input id="payment-description" name="description" value="Concert tickets" maxlength="200" placeholder="What’s this payment for?"></div></div>
+              <div class="field-grid amount-grid"><div class="field"><label for="payment-amount">Amount <span class="required-dot">*</span></label><div class="amount-input"><span>$</span><input id="payment-amount" name="amount" type="number" min="0.01" max="100000" step="any" inputmode="decimal" required value="250.00"><span>USD</span></div></div><div class="field"><label for="payment-description">Memo <span class="optional">Optional</span></label><input id="payment-description" name="description" value="Concert tickets" maxlength="200" placeholder="What’s this payment for?"></div></div>
+              <label class="unknown-amount"><input id="amount-unknown" type="checkbox"> Amount unknown (model test)</label>
               <div class="payment-summary"><span>Payment method<strong id="payment-method-summary">Zelle</strong></span><span>Transfer fee<strong>$0.00</strong></span><span>Total amount<strong id="total-amount">$250.00</strong></span></div>
               <div id="form-error" class="form-error" role="alert" hidden></div>
-              <div class="submit-area"><button id="make-payment" class="primary-button" type="submit"><span id="submit-label">Make payment</span><svg aria-hidden="true" class="icon" id="submit-arrow"><use href="#i-arrow"/></svg><span class="spinner" id="submit-spinner" hidden></span></button><p><svg aria-hidden="true" class="icon"><use href="#i-info"/></svg>Simulates a recipient check. No funds are transferred.</p></div>
+              <div class="submit-area"><button id="make-payment" class="primary-button" type="submit"><span id="submit-label">Make payment</span><svg aria-hidden="true" class="icon" id="submit-arrow"><use href="#i-arrow"/></svg><span class="spinner" id="submit-spinner" hidden></span></button><p><svg aria-hidden="true" class="icon"><use href="#i-info"/></svg>Simulates report and fraud checks. No funds are transferred.</p></div>
             </fieldset>
           </form>
           <section id="lookup-result" class="result-panel" role="region" aria-label="Recipient lookup result" hidden tabindex="-1">
             <div class="result-heading"><span id="result-symbol" class="result-symbol"><svg aria-hidden="true" class="icon"><use id="result-icon" href="#i-warning"/></svg></span><div><span id="result-eyebrow" class="result-eyebrow">SCAMCIRCUIT CHECK</span><h2 id="result-title"></h2></div><span id="result-count" class="result-count" hidden></span></div>
             <p id="result-description" class="result-description" aria-live="polite"></p>
             <div id="match-list" class="match-list"></div>
-            <details id="response-details" class="response-details" hidden><summary>View lookup response<svg aria-hidden="true" class="icon"><use href="#i-chevron"/></svg></summary><pre><code id="response-json"></code></pre></details>
+            <details id="response-details" class="response-details" hidden><summary>View transaction check response<svg aria-hidden="true" class="icon"><use href="#i-chevron"/></svg></summary><pre><code id="response-json"></code></pre></details>
           </section>
         </div>
         <aside class="inspector">

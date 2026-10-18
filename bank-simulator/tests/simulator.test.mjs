@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BANK_CONTEXT_FIELDS, getDefaultBankContext, buildTransaction, matchedIdentifiers } from "../public/transaction.mjs";
+import { BANK_CONTEXT_FIELDS, getDefaultBankContext, getFraudTestInput, buildTransaction, matchedIdentifiers } from "../public/transaction.mjs";
 import { createHandler } from "../handler.mjs";
 
 const input = { paymentHandle: "test_handle", email: "test@gmail.com", phone: "+1 (301) 555-0189", amount: "250.00", description: "Concert tickets" };
@@ -117,7 +117,7 @@ test("optional identifiers become null, and leading zeros in handles are preserv
 });
 
 test("invalid handles, amounts and destination phones cannot be submitted", () => {
-  for (const change of [{ paymentHandle: "" }, { paymentHandle: 98 }, { amount: "" }, { amount: "0" }, { amount: "-1" }, { amount: "NaN" }, { amount: "1.234" }, { amount: "100001" }, { phone: "invalid" }]) {
+  for (const change of [{ paymentHandle: "" }, { paymentHandle: 98 }, { amount: "" }, { amount: "0" }, { amount: "-1" }, { amount: "NaN" }, { amount: "0.001" }, { amount: "100001" }, { phone: "invalid" }]) {
     assert.throws(() => buildTransaction({ ...input, ...change }, now));
   }
 });
@@ -203,4 +203,59 @@ test("static assets are served without exposing server source or arbitrary files
   const head = await handle(new Request("http://localhost:3001/", { method: "HEAD" }));
   assert.equal(head.status, 200);
   assert.equal(await head.text(), "");
+});
+
+test("transaction checks forward the full payload and preserve report and model decisions", async () => {
+  const payload = buildTransaction(input, now);
+  for (const result of [
+    { source: "reports", decision: "blocked", reports: [report], prediction: null },
+    ...[true, false].map((is_fraud) => ({ source: "model", decision: is_fraud ? "blocked" : "allowed", reports: [], prediction: { is_fraud, fraud_probability: is_fraud ? 0.95 : 0.1, top_factors: { velocity_score: 1.2 } } })),
+  ]) {
+    const handle = createHandler({ fetchImpl: async (url, options) => {
+      assert.equal(String(url), "http://127.0.0.1:3000/api/transactions/check");
+      assert.deepEqual(JSON.parse(options.body), payload);
+      return Response.json(result);
+    } });
+    const response = await handle(new Request("http://localhost:3001/api/check-transaction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), result);
+  }
+});
+
+test("contradictory, missing or malformed model decisions never complete a payment", async () => {
+  for (const result of [[], {}, { source: "model", decision: "allowed", reports: [], prediction: null },
+    { source: "model", decision: "allowed", reports: [], prediction: { is_fraud: true, fraud_probability: 0.95, top_factors: {} } },
+    { source: "reports", decision: "allowed", reports: [report], prediction: null },
+  ]) {
+    const handle = createHandler({ fetchImpl: async () => Response.json(result) });
+    const response = await handle(new Request("http://localhost:3001/api/check-transaction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildTransaction(input, now)) }));
+    assert.equal(response.status, 502);
+  }
+});
+
+
+test("fraud preset preserves all twelve supplied model values and uses a fresh recipient", () => {
+  const input = getFraudTestInput("first");
+  const payload = buildTransaction(input, now);
+  const expected = {
+    transaction_amount: null, hour_of_day: 1, is_weekend: 1,
+    num_items: 2, customer_age: 20, prev_transactions: 2,
+    distance_from_home: 43.37, device_type: 2, network_quality: 67.9,
+    is_first_transaction: 1, store_type: 1, velocity_score: null,
+  };
+  for (const [field, value] of Object.entries(expected)) assert.equal(payload[field], value, field);
+  assert.equal("is_fraud" in payload, false);
+  assert.notEqual(input.paymentHandle, getFraudTestInput("second").paymentHandle);
+  assert.notEqual(input.email, getFraudTestInput("second").email);
+  assert.equal(payload.phone, null);
+  input.bankContext.customer_age = 99;
+  assert.equal(getFraudTestInput("third").bankContext.customer_age, 20);
+});
+
+
+test("unknown amount is explicit and becomes JSON null without accepting invalid normal amounts", () => {
+  assert.equal(buildTransaction({ ...input, amount: "", amountUnknown: true }, now).transaction_amount, null);
+  assert.equal(JSON.parse(JSON.stringify(buildTransaction(getFraudTestInput("missing"), now))).velocity_score, null);
+  assert.throws(() => buildTransaction({ ...input, amount: "", amountUnknown: false }, now));
+  assert.throws(() => buildTransaction({ ...input, amount: "", amountUnknown: "true" }, now));
 });

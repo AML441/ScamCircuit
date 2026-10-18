@@ -23,6 +23,33 @@ export function getDefaultBankContext() {
   return Object.fromEntries(BANK_CONTEXT_FIELDS.map((field) => [field.key, field.defaultValue]));
 }
 
+export function getFraudTestInput(recipientId) {
+  return {
+    paymentHandle: `fraud_demo_${recipientId}`,
+    email: `fraud_demo_${recipientId}@example.invalid`,
+    phone: "",
+    amount: "",
+    amountUnknown: true,
+    description: "Fraud model test",
+    bankContext: {
+      ...getDefaultBankContext(),
+      hour_of_day: 1,
+      is_weekend: 1,
+      num_items: 2,
+      customer_age: 20,
+      prev_transactions: 2,
+      distance_from_home: 43.37,
+      device_type: 2,
+      network_quality: 67.9,
+      is_first_transaction: 1,
+      store_type: 1,
+      velocity_score: "",
+      website_url: "google.com",
+      app_contact: "Messages",
+    },
+  };
+}
+
 function contextNumber(value, field) {
   if (typeof value === "string") value = value.trim();
   if (value == null || value === "") return null;
@@ -66,9 +93,9 @@ export function buildTransaction(input, now = new Date()) {
   const paymentHandle = input.paymentHandle.trim();
   if (!paymentHandle || paymentHandle.length > 2000) throw new Error("Enter the recipient’s payment handle or account ID.");
   const amountText = String(input.amount ?? "").trim();
-  const amount = Number(amountText);
-  if (!/^\d+(\.\d{1,2})?$/.test(amountText) || !Number.isFinite(amount) || amount <= 0 || amount > 100000) {
-    throw new Error("Enter an amount between $0.01 and $100,000, with up to two decimal places.");
+  const amount = input.amountUnknown === true ? null : Number(amountText);
+  if (amount !== null && (!/^\d+(\.\d+)?$/.test(amountText) || !Number.isFinite(amount) || amount < 0.01 || amount > 100000)) {
+    throw new Error("Enter an amount between $0.01 and $100,000.");
   }
   const email = String(input.email ?? "").trim() || null;
   const phone = String(input.phone ?? "").trim() || null;
@@ -101,4 +128,20 @@ export function matchedIdentifiers(report, payload) {
   if (payload.email && typeof report.email === "string" && report.email.trim().toLowerCase() === payload.email.toLowerCase()) matches.push("Email");
   if (payload.phone && typeof report.phone === "string" && report.phone.replace(/[^0-9]/g, "") === payload.phone.replace(/[^0-9]/g, "")) matches.push("Phone");
   return matches;
+}
+
+// Validate the decision as well as its evidence before displaying a completed payment.
+export function validateTransactionCheck(result) {
+  if (!result || typeof result !== "object" || !Array.isArray(result.reports)) return false;
+  if (result.source === "reports") {
+    return result.decision === "blocked" && result.prediction === null && result.reports.length > 0
+      && result.reports.every((row) => row && Number.isInteger(row.match_count) && row.match_count >= 1 && row.match_count <= 3);
+  }
+  const prediction = result.prediction;
+  return result.source === "model" && result.reports.length === 0 && prediction
+    && typeof prediction.is_fraud === "boolean"
+    && Number.isFinite(prediction.fraud_probability) && prediction.fraud_probability >= 0 && prediction.fraud_probability <= 1
+    && prediction.top_factors && typeof prediction.top_factors === "object" && !Array.isArray(prediction.top_factors)
+    && Object.values(prediction.top_factors).every((value) => typeof value === "number" && Number.isFinite(value))
+    && result.decision === (prediction.is_fraud ? "blocked" : "allowed");
 }
