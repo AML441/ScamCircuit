@@ -1,3 +1,4 @@
+import { validateTransactionCheck } from "./public/transaction.mjs";
 import { readFile } from "node:fs/promises";
 
 const staticFiles = new Map([
@@ -16,7 +17,8 @@ export function createHandler({ lookupBaseUrl = "http://127.0.0.1:3000", fetchIm
 
   return async function handle(request) {
     const url = new URL(request.url);
-    if (url.pathname === "/api/check-recipient") {
+    if (["/api/check-recipient", "/api/check-transaction"].includes(url.pathname)) {
+      const transactionCheck = url.pathname === "/api/check-transaction";
       if (request.method !== "POST") return Response.json({ error: "Use POST to check a transaction." }, { status: 405, headers: { ...jsonHeaders, Allow: "POST" } });
       if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") return Response.json({ error: "Send a JSON transaction." }, { status: 415, headers: jsonHeaders });
       if (Number(request.headers.get("content-length")) > MAX_BODY_BYTES) return Response.json({ error: "The transaction is too large." }, { status: 413, headers: jsonHeaders });
@@ -46,15 +48,19 @@ export function createHandler({ lookupBaseUrl = "http://127.0.0.1:3000", fetchIm
       }
 
       try {
-        const upstream = await fetchImpl(lookupUrl, {
+        const upstream = await fetchImpl(transactionCheck ? new URL("/api/transactions/check", lookupBaseUrl) : lookupUrl, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload), signal: AbortSignal.timeout(15000),
+          body: JSON.stringify(payload), signal: AbortSignal.timeout(25000),
         });
         let result;
         try { result = await upstream.json(); } catch {
           return Response.json({ error: "ScamCircuit returned an unreadable response. Check that the reporting app is running on the configured port." }, { status: 502, headers: jsonHeaders });
         }
         if (!upstream.ok) return Response.json({ error: typeof result?.error === "string" ? result.error : "The recipient lookup failed. Please retry." }, { status: upstream.status, headers: jsonHeaders });
+        if (transactionCheck) {
+          if (!validateTransactionCheck(result)) return Response.json({ error: "ScamCircuit returned an invalid transaction decision. The payment was not completed." }, { status: 502, headers: jsonHeaders });
+          return Response.json(result, { headers: jsonHeaders });
+        }
         if (!Array.isArray(result) || result.some((row) => !row || typeof row !== "object" || Array.isArray(row) || !Number.isInteger(row.match_count) || row.match_count < 1 || row.match_count > 3)) {
           return Response.json({ error: "ScamCircuit returned an unexpected result. The payment check could not be completed." }, { status: 502, headers: jsonHeaders });
         }

@@ -1,4 +1,4 @@
-import { BANK_CONTEXT_FIELDS, getDefaultBankContext, buildTransaction, matchedIdentifiers } from "/transaction.mjs";
+import { BANK_CONTEXT_FIELDS, getDefaultBankContext, getFraudTestInput, buildTransaction, matchedIdentifiers, validateTransactionCheck } from "/transaction.mjs";
 
 const byId = (id) => document.getElementById(id);
 const form = byId("payment-form");
@@ -22,6 +22,7 @@ function readInput() {
     email: byId("recipient-email").value,
     phone: byId("recipient-phone").value,
     amount: byId("payment-amount").value,
+    amountUnknown: byId("amount-unknown").checked,
     description: byId("payment-description").value,
     bankContext: Object.fromEntries(BANK_CONTEXT_FIELDS.map((field) => [field.key, byId(`context-${field.key}`).value])),
   };
@@ -48,7 +49,7 @@ function renderPayload(payload, sent = false) {
 function refreshPreview() {
   const input = readInput();
   const amount = Number(input.amount);
-  byId("total-amount").textContent = Number.isFinite(amount) && amount >= 0 ? amountFormatter.format(amount) : "—";
+  byId("total-amount").textContent = input.amountUnknown ? "Unknown" : Number.isFinite(amount) && amount >= 0 ? amountFormatter.format(amount) : "—";
   try {
     renderPayload(submittedPayload || buildTransaction(input), Boolean(submittedPayload));
   } catch (error) {
@@ -68,15 +69,23 @@ function clearResult() {
   setProgress(1);
 }
 
-function renderResult(state, payload, reports = [], errorMessage = "") {
+function renderResult(state, payload, reports = [], errorMessage = "", check = null) {
   resultPanel.className = `result-panel ${state}`;
   resultPanel.hidden = false;
-  byId("result-count").hidden = state !== "flagged";
+  byId("result-count").hidden = state !== "flagged" || check?.source === "model";
   byId("response-details").hidden = state === "error";
   byId("match-list").replaceChildren();
   byId("result-icon").setAttribute("href", state === "clear" ? "#i-check" : state === "error" ? "#i-info" : "#i-warning");
   byId("result-eyebrow").textContent = state === "flagged" ? "PAYMENT FLAGGED" : state === "clear" ? "PAYMENT COMPLETED" : "CHECK UNAVAILABLE";
-  if (state === "flagged") {
+  if (state === "flagged" && check?.source === "model") {
+    byId("result-title").textContent = "Our model predicted fraud";
+    byId("result-description").textContent = `No prior fraud reports matched this recipient. Our fraud model predicted this transaction was fraudulent, so the simulated payment is paused. Model fraud probability: ${(check.prediction.fraud_probability * 100).toFixed(1)}%.`;
+    for (const [factor, contribution] of Object.entries(check.prediction.top_factors)) {
+      const card = element("article", "match-report");
+      card.append(element("strong", "", factor.replaceAll("_", " ")), element("p", "", `${contribution > 0 ? "Increased" : contribution < 0 ? "Decreased" : "Did not change"} the model's fraud score.`));
+      byId("match-list").append(card);
+    }
+  } else if (state === "flagged") {
     byId("result-title").textContent = "Prior fraud reports found";
     byId("result-count").textContent = String(reports.length);
     byId("result-description").textContent = `${reports.length} existing ${reports.length === 1 ? "report matches" : "reports match"} this recipient’s details. The simulated payment is paused. Review the matches below, ordered by the number of matching identifiers.`;
@@ -93,12 +102,12 @@ function renderResult(state, payload, reports = [], errorMessage = "") {
     }
   } else if (state === "clear") {
     byId("result-title").textContent = "Payment completed";
-    byId("result-description").textContent = `Your simulated ${amountFormatter.format(payload.transaction_amount)} ${payload.payment_method} payment to ${payload.payment_handle} went through. No matching reports were found.\n\nThis is a demo confirmation; no real money was moved. An empty result does not independently verify the recipient.`;
+    byId("result-description").textContent = `Your simulated ${payload.transaction_amount === null ? "" : `${amountFormatter.format(payload.transaction_amount)} `}${payload.payment_method} payment to ${payload.payment_handle} went through. No matching reports were found, and the fraud model did not flag this transaction.\n\nThis is a demo confirmation; no real money was moved. An empty result does not independently verify the recipient.`;
   } else {
     byId("result-title").textContent = "We couldn’t check this recipient";
     byId("result-description").textContent = `${errorMessage}\n\nThe simulated payment was not completed. You can retry the check.`;
   }
-  byId("response-json").textContent = JSON.stringify(reports, null, 2);
+  byId("response-json").textContent = JSON.stringify(check || reports, null, 2);
   setProgress(state === "error" ? 2 : 3);
   byId("submit-label").textContent = "Check again";
   resultPanel.focus({ preventScroll: true });
@@ -107,6 +116,8 @@ function renderResult(state, payload, reports = [], errorMessage = "") {
 
 function inputChanged() {
   if (busy) return;
+  byId("payment-amount").disabled = byId("amount-unknown").checked;
+  byId("payment-amount").required = !byId("amount-unknown").checked;
   clearResult();
   refreshPreview();
 }
@@ -168,6 +179,18 @@ byId("load-new").addEventListener("click", () => {
   refreshPreview();
 });
 
+byId("load-fraud").addEventListener("click", () => {
+  const input = getFraudTestInput(crypto.randomUUID());
+  byId("payment-handle").value = input.paymentHandle;
+  byId("recipient-email").value = input.email;
+  byId("recipient-phone").value = input.phone;
+  byId("payment-amount").value = input.amount;
+  byId("amount-unknown").checked = input.amountUnknown;
+  byId("payment-description").value = input.description;
+  for (const field of BANK_CONTEXT_FIELDS) byId(`context-${field.key}`).value = String(input.bankContext[field.key]);
+  inputChanged();
+});
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (busy) return;
@@ -187,20 +210,20 @@ form.addEventListener("submit", async (event) => {
   contextFields.disabled = true;
   byId("reset-context").disabled = true;
   form.setAttribute("aria-busy", "true");
-  byId("submit-label").textContent = "Checking recipient…";
+  byId("submit-label").textContent = "Checking reports and fraud risk…";
   byId("submit-arrow").toggleAttribute("hidden", true);
   byId("submit-spinner").hidden = false;
   setProgress(2);
   try {
-    const response = await fetch("/api/check-recipient", {
+    const response = await fetch("/api/check-transaction", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload), signal: AbortSignal.timeout(20000),
+      body: JSON.stringify(payload), signal: AbortSignal.timeout(30000),
     });
     let reports;
     try { reports = await response.json(); } catch { throw new Error("The simulator received an unreadable response. Check that both local servers are running."); }
     if (!response.ok) throw new Error(reports.error || "The recipient lookup failed. Please try again.");
-    if (!Array.isArray(reports)) throw new Error("The recipient lookup returned an unexpected result.");
-    renderResult(reports.length ? "flagged" : "clear", payload, reports);
+    if (!validateTransactionCheck(reports)) throw new Error("The transaction check returned an unexpected result.");
+    renderResult(reports.decision === "blocked" ? "flagged" : "clear", payload, reports.reports, "", reports);
   } catch (error) {
     renderResult("error", payload, [], error.name === "TimeoutError" ? "The recipient lookup timed out. Please try again." : error.message);
   } finally {
