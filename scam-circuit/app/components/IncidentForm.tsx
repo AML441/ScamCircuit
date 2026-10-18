@@ -88,37 +88,7 @@ export default function IncidentForm() {
         {currentStep === 2 && <Step2EvidenceUpload />}
         {currentStep === 3 && <Step3Review />}
 
-        {/* Navigation buttons OUTSIDE the step components */}
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => setCurrentStep(currentStep - 1)}
-            disabled={currentStep === 1}
-            className="rounded-lg border border-gray-300 bg-white px-5 py-3 font-medium text-gray-700 hover:bg-gray-50 disabled:invisible"
-          >
-            ← Back
-          </button>
-
-          {/* {currentStep === 2 ? (
-            <button
-              type="button"
-              onClick={() => setCurrentStep(3)}
-              className="rounded-lg bg-[#115c04] px-6 py-3 font-medium text-white hover:bg-green-800"
-            >
-              Continue to Review →
-            </button>
-          ) : (
-            <button
-              type="submit"
-              form={formId}
-              className="rounded-lg bg-[#115c04] px-6 py-3 font-medium text-white hover:bg-green-800"
-            >
-              {currentStep === 1
-                ? "Continue to Evidence →"
-                : "Submit Report"}
-            </button>
-          )} */}
-        </div>
+       
       </div>
     </div>
   );

@@ -1,14 +1,14 @@
 "use client";
 
 import { useIncidentForm } from "../IncidentFormContext";
-import FormProgress from "../FormProgress";
+// import FormProgress from "../FormProgress";
 
 import { contactOptions, messagingPlatforms, paymentApps } from "@/lib/report-options";
 import { validateReport } from "@/lib/report-validation";
 import { useState } from "react";
 
 const fieldClass =
-  "w-full rounded-lg text-gray-700 border border-gray-300 p-3 focus:border-blue-500 focus:outline-none";
+  "w-full rounded-xl text-gray-700 border border-gray-300 p-3 focus:border-green-500 focus:outline-none";
 
 export default function Step1GeneralInfo() {
   const { formState, updateForm, setCurrentStep } = useIncidentForm();
@@ -48,7 +48,7 @@ export default function Step1GeneralInfo() {
         <p className="mt-1 text-sm text-gray-500">
           Tell us what happened. You can provide evidence in the next step.
         </p>
-        <FormProgress />
+        {/* <FormProgress /> */}
       </div>
 
       <form className="space-y-6" onSubmit={handleContinue}>
@@ -78,7 +78,7 @@ export default function Step1GeneralInfo() {
                     onChange={(e) =>
                     toggleContactMethod(option.value, e.target.checked)
                     }
-                    className="h-4 w-4 accent-blue-600"
+                    className="h-4 w-4 accent-green-600"
                 />
                 <span className="text-sm text-gray-900">
                     {option.label}
@@ -117,7 +117,7 @@ export default function Step1GeneralInfo() {
                                 ? { otherMessagingPlatform: "" }
                                 : {}),
                             })}
-                            className="h-4 w-4 accent-blue-600"
+                            className="h-4 w-4 accent-green-600"
                           />
                           {platform.label}
                         </label>

@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useIncidentForm } from "../IncidentFormContext";
 import { contactOptions, messagingPlatforms, paymentApps } from "@/lib/report-options";
-import FormProgress from "../FormProgress";
+// import FormProgress from "../FormProgress";
 import { validateReport, validateEvidence, parseUsernames } from "@/lib/report-validation";
 
 export default function Step3ReviewSubmit() {
@@ -50,13 +50,13 @@ export default function Step3ReviewSubmit() {
   if (submitted) {
     return (
       <div className="mx-auto max-w-8xl rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-        <div className="mb-4 text-5xl">✓</div>
+        <div className="mb-4 text-5xl text-green-700">✓</div>
 
         <h2 className="text-2xl font-bold text-gray-900">
           Report Submitted
         </h2>
 
-        <p className="mt-3 text-gray-600">
+        <p className="mt-3 text-gray-700">
           Your report and attachments have been saved.
           <span className="mt-2 block">Report ID: {submitted}</span>
         </p>
@@ -64,7 +64,7 @@ export default function Step3ReviewSubmit() {
         <button
           type="button"
           onClick={() => resetForm()}
-          className="mt-6 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
+          className="mt-6 rounded-lg bg-green-700 px-6 py-3 font-medium text-white hover:bg-green-800"
         >
           Submit Another Report
         </button>
@@ -73,13 +73,13 @@ export default function Step3ReviewSubmit() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+    <div className="mx-auto max-w-5xl rounded-xl border border-gray-200 bg-white shadow-sm sm:p-6">
       {/* Header */}
       <div className="mb-8">
-        <FormProgress/>
-        {/* <h2 className="mt-2 text-2xl font-bold text-gray-900">
+        {/* <FormProgress/> */}
+        <h2 className="mt-2 text-2xl font-bold text-gray-900">
           Review & Submit
-        </h2> */}
+        </h2> 
         <p className="mt-2 text-sm text-gray-600">
           Review the details below and confirm your report before
           proceeding.
@@ -99,7 +99,7 @@ export default function Step3ReviewSubmit() {
             <button
               type="button"
               onClick={() => setCurrentStep(1)}
-              className="text-sm font-medium text-blue-600 hover:text-blue-800"
+              className="text-sm font-medium text-green-600 hover:text-green-800"
             >
               Edit
             </button>
@@ -202,7 +202,7 @@ export default function Step3ReviewSubmit() {
             <button
               type="button"
               onClick={() => setCurrentStep(2)}
-              className="text-sm font-medium text-blue-600 hover:text-blue-800"
+              className="text-sm font-medium text-green-600 hover:text-green-800"
             >
               Edit
             </button>
@@ -254,7 +254,7 @@ export default function Step3ReviewSubmit() {
                 setAccuracyConfirmed(event.target.checked)
               }
               required
-              className="mt-1 h-4 w-4 rounded border-gray-300"
+              className="mt-1 h-4 w-4 rounded border-gray-300 accent-green-600"
             />
 
             <span className="text-sm text-gray-700">
@@ -271,7 +271,7 @@ export default function Step3ReviewSubmit() {
                 setPrivacyAcknowledged(event.target.checked)
               }
               required
-              className="mt-1 h-4 w-4 rounded border-gray-300"
+              className="mt-1 h-4 w-4 rounded border-gray-300 accent-green-600"
             />
 
             <span className="text-sm text-gray-700">
@@ -294,7 +294,7 @@ export default function Step3ReviewSubmit() {
           <button
             type="submit"
             disabled={submitting || !accuracyConfirmed || !privacyAcknowledged}
-            className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+            className="rounded-lg bg-green-600 px-6 py-3 font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300"
           >
             {submitting ? "Submitting…" : "Submit Report →"}
           </button>
