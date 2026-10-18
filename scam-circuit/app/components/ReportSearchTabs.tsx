@@ -1,12 +1,13 @@
 import Link from "next/link";
 
-export default function ReportSearchTabs({ activeTab }: { activeTab: "report" | "search" }) {
+export default function ReportSearchTabs({ activeTab }: { activeTab: "report" | "search" | "radar" }) {
   return (
-    <nav aria-label="Report and search" className="mb-6 flex justify-center gap-10 border-b border-gray-300">
+    <nav aria-label="ScamCircuit sections" className="mb-6 flex justify-center border-b border-gray-300">
       <div className="flex gap-8">
         {([
           { tab: "report", label: "Report", href: "/" },
           { tab: "search", label: "Search", href: "/search" },
+          { tab: "radar", label: "Scam Radar", href: "/radar" },
         ] as const).map(({ tab, label, href }) => (
           <Link
             key={tab}

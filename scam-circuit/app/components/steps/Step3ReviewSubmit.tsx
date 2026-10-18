@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useIncidentForm } from "../IncidentFormContext";
 import { contactOptions, messagingPlatforms, paymentApps } from "@/lib/report-options";
+import { formatPayment } from "@/lib/report-format";
 // import FormProgress from "../FormProgress";
 import { validateReport, validateEvidence, parseUsernames } from "@/lib/report-validation";
 
@@ -148,7 +149,7 @@ export default function Step3ReviewSubmit() {
                 Payment method
               </dt>
               <dd className="mt-1 text-gray-900">
-                {formState.paymentMethod || "Not provided"}
+                {formatPayment(formState.paymentMethod)}
                 {formState.paymentMethod === "other" && formState.otherPaymentMethod
                   ? `: ${formState.otherPaymentMethod}` : ""}
                 {formState.paymentMethod === "payment-app" && formState.paymentApp

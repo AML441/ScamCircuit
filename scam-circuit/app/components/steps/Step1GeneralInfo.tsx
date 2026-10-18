@@ -233,13 +233,13 @@ export default function Step1GeneralInfo() {
             className={fieldClass}
           >
             <option value="">Select a payment method</option>
-            <option value="bank-transfer">Bank transfer or wire</option>
-            <option value="payment-app">Payment app</option>
-            <option value="credit-card">Credit card</option>
-            <option value="debit-card">Debit card</option>
+            <option value="bank-transfer">Bank Transfer or Wire</option>
+            <option value="payment-app">Payment App</option>
+            <option value="credit-card">Credit Card</option>
+            <option value="debit-card">Debit Card</option>
             <option value="crypto">Cryptocurrency</option>
-            <option value="gift-card">Gift card</option>
-            <option value="cash-check">Cash or check</option>
+            <option value="gift-card">Gift Card</option>
+            <option value="cash-check">Cash or Check</option>
             <option value="other">Other</option>
           </select>
 
