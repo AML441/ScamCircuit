@@ -3,7 +3,7 @@ import json
 import pandas as pd
 import xgboost as xgb_lib
 from xgboost import XGBClassifier
-from classifier import add_features
+from features import add_features
 
 # Loaded once at startup
 model = XGBClassifier()
