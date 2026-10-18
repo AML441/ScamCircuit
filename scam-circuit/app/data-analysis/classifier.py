@@ -3,7 +3,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import xgboost as xgb
 from xgboost import XGBClassifier
+import json
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
    classification_report,
@@ -24,36 +26,7 @@ local_path = kagglehub.dataset_download(
 
 # info about dataset
 df = pd.read_csv('./downloads/fraud.csv')
-df.head()
-df.info()
-df.describe()
-print("end")
 
-
-# PIPELINE
-
-
-# FEATURE ENGINEERING
-
-
-df['amount_per_item'] = df['transaction_amount'] / (df['num_items'] + 1)
-df['risk_distance_amount'] = df['transaction_amount'] * df['distance_from_home']
-df['night_transaction'] = (df['hour_of_day'] < 6).astype(int)
-df['high_velocity'] = (df['velocity_score'] > df['velocity_score'].quantile(0.75)).astype(int)
-
-
-# Strong interaction features
-df['amount_per_distance'] = df['transaction_amount'] / (df['distance_from_home'] + 1)
-df['velocity_per_txn'] = df['velocity_score'] / (df['prev_transactions'] + 1)
-
-
-df['high_risk_combo'] = (
-   (df['transaction_amount'] > df['transaction_amount'].quantile(0.9)) &
-   (df['distance_from_home'] > df['distance_from_home'].quantile(0.9))
-).astype(int)
-
-
-# Choose features to train on
 features = [
     "transaction_amount",
     "hour_of_day",
@@ -79,17 +52,35 @@ features = [
     "description"
 ]
 
-X = df[features]
-y = df["is_fraud"]
+def add_features(df: pd.DataFrame, cutoffs: dict) -> pd.DataFrame:
+    df = df.copy()
+    df['amount_per_item'] = df['transaction_amount'] / (df['num_items'] + 1)
+    df['risk_distance_amount'] = df['transaction_amount'] * df['distance_from_home']
+    df['night_transaction'] = (df['hour_of_day'] < 6).astype(int)
+    df['high_velocity'] = (df['velocity_score'] > cutoffs['velocity_q75']).astype(int)
+    df['amount_per_distance'] = df['transaction_amount'] / (df['distance_from_home'] + 1)
+    df['velocity_per_txn'] = df['velocity_score'] / (df['prev_transactions'] + 1)
+    df['high_risk_combo'] = (
+        (df['transaction_amount'] > cutoffs['amount_q90']) &
+        (df['distance_from_home'] > cutoffs['distance_q90'])
+    ).astype(int)
+    return df
 
-
-X_train, X_test, y_train, y_test = train_test_split(
-   X, y, stratify=y, test_size=0.2, random_state=42
+train_df, test_df = train_test_split(
+    df, stratify=df['is_fraud'], test_size=0.2, random_state=42
 )
 
+cutoffs = {
+    'velocity_q75': float(train_df['velocity_score'].quantile(0.75)),
+    'amount_q90': float(train_df['transaction_amount'].quantile(0.9)),
+    'distance_q90': float(train_df['distance_from_home'].quantile(0.9)),
+}
 
-# HANDLE IMBALANCE
+train_df = add_features(train_df, cutoffs)
+test_df = add_features(test_df, cutoffs)
 
+X_train, y_train = train_df.drop(columns='is_fraud'), train_df['is_fraud']
+X_test, y_test = test_df.drop(columns='is_fraud'), test_df['is_fraud']
 
 # Calculate imbalance ratio
 scale_pos_weight = (y_train == 0).sum() / (y_train == 1).sum()
@@ -113,6 +104,13 @@ xgb = XGBClassifier(
 
 
 xgb.fit(X_train, y_train)
+
+importance = pd.Series(xgb.feature_importances_, index=X_train.columns).sort_values()
+print(importance.sort_values(ascending=False))
+
+importance.plot(kind='barh', figsize=(8, 6), title='Feature importance (gain)')
+plt.tight_layout()
+plt.show()
 
 
 # PREDICTIONS
@@ -141,23 +139,11 @@ for t in np.arange(0.05, 0.9, 0.01):
 
 print("Better Threshold:", best_thresh)
 
-
-# FINAL RESULTS
-pred_final = (probs > best_thresh).astype(int)
-print(classification_report(y_test, pred_final))
-
-
-# PRECISION-RECALL CURVE
-
-
-precision, recall, thresholds = precision_recall_curve(y_test, probs)
-
-
-plt.figure(figsize=(7,5))
-plt.plot(recall, precision)
-plt.title("Precision-Recall Curve (Fraud Detection)")
-plt.xlabel("Recall")
-plt.ylabel("Precision")
-plt.grid()
-plt.show()
-
+# SAVE
+xgb.save_model('fraud_model.json')
+with open('fraud_meta.json', 'w') as f:
+    json.dump({
+        'threshold': float(best_thresh),
+        'cutoffs': cutoffs,
+        'feature_columns': list(X_train.columns),
+    }, f)
