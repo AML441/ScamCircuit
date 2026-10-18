@@ -25,6 +25,8 @@ def classify(record: dict) -> dict:
     df = add_features(df, meta['cutoffs'])
     df = df[meta['feature_columns']]          # same columns, same order as training
     prob = float(model.predict_proba(df)[0, 1])
+    # stdout is the JSON response consumed by Node; send diagnostics to stderr.
+    print(prob, file=sys.stderr)
 
     contribs = model.get_booster().predict(xgb_lib.DMatrix(df), pred_contribs=True)[0]
     contribs = pd.Series(contribs[:-1], index=df.columns)   # last value is the baseline
