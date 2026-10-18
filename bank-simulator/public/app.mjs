@@ -145,15 +145,15 @@ byId("reset-context").addEventListener("click", () => {
 });
 
 byId("load-test").addEventListener("click", () => {
-  byId("payment-handle").value = "test_handle";
-  byId("recipient-email").value = "test@gmail.com";
+  byId("payment-handle").value = "@Scammer12";
+  byId("recipient-email").value = "";
   byId("recipient-phone").value = "";
   clearResult();
   refreshPreview();
 });
 
 byId("load-new").addEventListener("click", () => {
-  const unique = crypto.randomUUID().slice(0, 8);
+  const unique = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000).padStart(3, "0");
   byId("payment-handle").value = `new_demo_${unique}`;
   byId("recipient-email").value = `new_demo_${unique}@example.invalid`;
   byId("recipient-phone").value = "";
