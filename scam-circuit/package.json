@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:bank": "npm --prefix ../bank-simulator start",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
