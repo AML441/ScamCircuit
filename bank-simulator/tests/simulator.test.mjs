@@ -234,8 +234,8 @@ test("contradictory, missing or malformed model decisions never complete a payme
 });
 
 
-test("fraud preset preserves all twelve supplied model values and uses a fresh recipient", () => {
-  const input = getFraudTestInput("first");
+test("fraud preset preserves all twelve supplied model values and uses a fixed demo recipient", () => {
+  const input = getFraudTestInput();
   const payload = buildTransaction(input, now);
   const expected = {
     transaction_amount: null, hour_of_day: 1, is_weekend: 1,
@@ -245,17 +245,17 @@ test("fraud preset preserves all twelve supplied model values and uses a fresh r
   };
   for (const [field, value] of Object.entries(expected)) assert.equal(payload[field], value, field);
   assert.equal("is_fraud" in payload, false);
-  assert.notEqual(input.paymentHandle, getFraudTestInput("second").paymentHandle);
-  assert.notEqual(input.email, getFraudTestInput("second").email);
+  assert.equal(input.paymentHandle, "fraud_demo");
+  assert.equal(input.email, "fraud_demo@example.invalid");
   assert.equal(payload.phone, null);
   input.bankContext.customer_age = 99;
-  assert.equal(getFraudTestInput("third").bankContext.customer_age, 20);
+  assert.equal(getFraudTestInput().bankContext.customer_age, 20);
 });
 
 
 test("unknown amount is explicit and becomes JSON null without accepting invalid normal amounts", () => {
   assert.equal(buildTransaction({ ...input, amount: "", amountUnknown: true }, now).transaction_amount, null);
-  assert.equal(JSON.parse(JSON.stringify(buildTransaction(getFraudTestInput("missing"), now))).velocity_score, null);
+  assert.equal(JSON.parse(JSON.stringify(buildTransaction(getFraudTestInput(), now))).velocity_score, null);
   assert.throws(() => buildTransaction({ ...input, amount: "", amountUnknown: false }, now));
   assert.throws(() => buildTransaction({ ...input, amount: "", amountUnknown: "true" }, now));
 });

@@ -23,10 +23,10 @@ export function getDefaultBankContext() {
   return Object.fromEntries(BANK_CONTEXT_FIELDS.map((field) => [field.key, field.defaultValue]));
 }
 
-export function getFraudTestInput(recipientId) {
+export function getFraudTestInput() {
   return {
-    paymentHandle: `fraud_demo_${recipientId}`,
-    email: `fraud_demo_${recipientId}@example.invalid`,
+    paymentHandle: "fraud_demo",
+    email: "fraud_demo@example.invalid",
     phone: "",
     amount: "",
     amountUnknown: true,

@@ -28,21 +28,10 @@ function readInput() {
   };
 }
 
-function setProgress(step) {
-  for (const item of document.querySelectorAll("#flow-list li")) {
-    const number = Number(item.dataset.step);
-    item.classList.toggle("active", number === step);
-    item.classList.toggle("complete", number < step);
-    if (number === step) item.setAttribute("aria-current", "step");
-    else item.removeAttribute("aria-current");
-  }
-}
-
 function renderPayload(payload, sent = false) {
   byId("payload-json").textContent = JSON.stringify(payload, null, 2);
   byId("context-time-summary").textContent = `${payload.date_occurred} · Hour ${payload.hour_of_day} · Weekend ${payload.is_weekend} · America/New_York`;
   byId("payment-method-summary").textContent = payload.payment_method;
-  byId("payment-method-badge").textContent = payload.payment_method;
   byId("payload-caption").textContent = sent ? "Submitted transaction · identifiers match the fields on the left" : "Live preview · includes your bank context edits";
 }
 
@@ -66,7 +55,6 @@ function clearResult() {
   byId("response-json").textContent = "";
   byId("response-details").open = false;
   byId("submit-label").textContent = "Make payment";
-  setProgress(1);
 }
 
 function renderResult(state, payload, reports = [], errorMessage = "", check = null) {
@@ -108,7 +96,6 @@ function renderResult(state, payload, reports = [], errorMessage = "", check = n
     byId("result-description").textContent = `${errorMessage}\n\nThe simulated payment was not completed. You can retry the check.`;
   }
   byId("response-json").textContent = JSON.stringify(check || reports, null, 2);
-  setProgress(state === "error" ? 2 : 3);
   byId("submit-label").textContent = "Check again";
   resultPanel.focus({ preventScroll: true });
   resultPanel.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "nearest" });
@@ -180,7 +167,7 @@ byId("load-new").addEventListener("click", () => {
 });
 
 byId("load-fraud").addEventListener("click", () => {
-  const input = getFraudTestInput(crypto.randomUUID());
+  const input = getFraudTestInput();
   byId("payment-handle").value = input.paymentHandle;
   byId("recipient-email").value = input.email;
   byId("recipient-phone").value = input.phone;
@@ -213,7 +200,6 @@ form.addEventListener("submit", async (event) => {
   byId("submit-label").textContent = "Checking reports and fraud risk…";
   byId("submit-arrow").toggleAttribute("hidden", true);
   byId("submit-spinner").hidden = false;
-  setProgress(2);
   try {
     const response = await fetch("/api/check-transaction", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -239,5 +225,4 @@ form.addEventListener("submit", async (event) => {
 
 window.addEventListener("focus", () => { if (!busy) refreshPreview(); });
 initializeContext();
-setProgress(1);
 refreshPreview();
