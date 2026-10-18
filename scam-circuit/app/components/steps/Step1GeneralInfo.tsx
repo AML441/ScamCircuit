@@ -45,10 +45,10 @@ export default function Step1GeneralInfo() {
         <h2 className="text-2xl font-bold text-gray-900">
           Report an Incident
         </h2>
-        <FormProgress />
         <p className="mt-1 text-sm text-gray-500">
           Tell us what happened. You can provide evidence in the next step.
         </p>
+        <FormProgress />
       </div>
 
       <form className="space-y-6" onSubmit={handleContinue}>
@@ -60,7 +60,7 @@ export default function Step1GeneralInfo() {
         </legend>
 
         <p className="mb-3 text-sm text-gray-500">
-            Select all that apply. Additional fields will appear for each selection.
+            Select all that apply. 
         </p>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -406,7 +406,7 @@ export default function Step1GeneralInfo() {
         <div className="flex justify-end border-t border-gray-200 pt-4">
           <button
             type="submit"
-            className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition hover:bg-blue-700"
+            className="rounded-lg bg-green-700 px-6 py-3 font-medium text-white transition hover:bg-green-800"
           >
             Continue to Evidence Upload →
           </button>
