@@ -1,4 +1,4 @@
-import { BANK_CONTEXT_FIELDS, getDefaultBankContext, getFraudTestInput, buildTransaction, matchedIdentifiers, validateTransactionCheck } from "/transaction.mjs";
+import { BANK_CONTEXT_FIELDS, getDefaultBankContext, getFraudTestInput, buildTransaction, validateTransactionCheck } from "/transaction.mjs";
 
 const byId = (id) => document.getElementById(id);
 const form = byId("payment-form");
@@ -76,17 +76,12 @@ function renderResult(state, payload, reports = [], errorMessage = "", check = n
   } else if (state === "flagged") {
     byId("result-title").textContent = "Prior fraud reports found";
     byId("result-count").textContent = String(reports.length);
-    byId("result-description").textContent = `${reports.length} existing ${reports.length === 1 ? "report matches" : "reports match"} this recipient’s details. The simulated payment is paused. Review the matches below, ordered by the number of matching identifiers.`;
-    const identifierCount = [payload.payment_handle, payload.email, payload.phone].filter(Boolean).length;
-    for (const report of reports) {
-      const card = element("article", "match-report");
-      const heading = element("div", "match-report-heading");
-      heading.append(element("strong", "", `Report #${report.id ?? "—"}`), element("span", "match-score", `${report.match_count} of ${identifierCount} identifiers`));
-      const identifiers = element("div", "match-identifiers");
-      for (const label of matchedIdentifiers(report, payload)) identifiers.append(element("span", "", `${label} matched`));
-      card.append(heading, identifiers);
-      if (typeof report.description === "string" && report.description) card.append(element("p", "", report.description.length > 240 ? `${report.description.slice(0, 240)}…` : report.description));
-      byId("match-list").append(card);
+    byId("result-description").textContent = `${reports.length} existing ${reports.length === 1 ? "report matches" : "reports match"} this recipient’s details. The simulated payment is paused. Open ScamCircuit to investigate the matching reports and submitted evidence.`;
+    if (check?.investigation_url) {
+      const link = element("a", "investigation-link", "Investigate matching reports →");
+      link.href = check.investigation_url;
+      link.referrerPolicy = "no-referrer";
+      byId("match-list").append(link);
     }
   } else if (state === "clear") {
     byId("result-title").textContent = "Payment completed";

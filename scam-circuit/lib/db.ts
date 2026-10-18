@@ -1,14 +1,22 @@
 import "server-only";
 import { Pool } from "pg";
+import { databaseConnectionString } from "./database-config";
 
 const globalForPg = globalThis as unknown as {
   pgPool?: Pool;
 };
 
+const connectionString = databaseConnectionString(process.env.DATABASE_URL);
+const cachedPool = globalForPg.pgPool;
+const reusePool = cachedPool?.options.connectionString === connectionString;
+
+// Hot reload can retain a pool created before the SSL configuration was fixed.
+if (cachedPool && !reusePool) void cachedPool.end().catch(() => {});
+
 export const db =
-  globalForPg.pgPool ??
+  (reusePool ? cachedPool : undefined) ??
   new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
     max: 5,
     connectionTimeoutMillis: 5000,
   });

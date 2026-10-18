@@ -218,8 +218,31 @@ test("transaction checks forward the full payload and preserve report and model 
     } });
     const response = await handle(new Request("http://localhost:3001/api/check-transaction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }));
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), result);
+    const body = await response.json();
+    if (result.source === "reports") {
+      const url = new URL(body.investigation_url);
+      assert.equal(url.origin, "http://127.0.0.1:3000");
+      assert.equal(url.pathname, "/search");
+      assert.equal(url.searchParams.get("mode"), "recipient");
+      for (const field of ["payment_handle", "email", "phone"]) assert.equal(url.searchParams.get(field), payload[field]);
+      delete body.investigation_url;
+    } else assert.equal(body.investigation_url, undefined);
+    assert.deepEqual(body, result);
   }
+});
+
+test("investigation links use the configured browser URL and encode recipient values without forwarding transaction metadata", async () => {
+  const payload = buildTransaction({ ...input, paymentHandle: "$alice&email=wrong", email: "Name+tag@example.com", phone: "" }, now);
+  const handle = createHandler({ lookupBaseUrl: "http://internal.invalid", webBaseUrl: "https://reports.example.com", fetchImpl: async () => Response.json({
+    source: "reports", decision: "blocked", reports: [report], prediction: null, investigation_url: "https://wrong.invalid",
+  }) });
+  const response = await handle(new Request("http://localhost:3001/api/check-transaction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, webBaseUrl: "https://wrong.invalid" }) }));
+  const url = new URL((await response.json()).investigation_url);
+  assert.equal(url.origin, "https://reports.example.com");
+  assert.equal(url.searchParams.get("payment_handle"), payload.payment_handle);
+  assert.equal(url.searchParams.get("email"), payload.email);
+  assert.equal(url.searchParams.has("phone"), false);
+  assert.equal(url.searchParams.has("transaction_amount"), false);
 });
 
 test("contradictory, missing or malformed model decisions never complete a payment", async () => {

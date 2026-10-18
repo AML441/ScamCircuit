@@ -76,6 +76,16 @@ export function getRecipientIdentifiers(payload: unknown): RecipientIdentifiers 
   return { paymentHandle, email, phone };
 }
 
+// Shared by transaction checks and the investigation dashboard so links return
+// exactly the same recipients, with the same normalization and ranking.
+export const recipientMatchConditions = [
+  "($1::text IS NOT NULL AND btrim(d.payment_handle) = $1)",
+  "($2::text IS NOT NULL AND lower(btrim(d.email)) = $2)",
+  "($3::text IS NOT NULL AND regexp_replace(d.phone, '[^0-9]', '', 'g') = $3)",
+];
+export const recipientMatchScore = recipientMatchConditions
+  .map((condition) => `CASE WHEN ${condition.slice(1, -1)} THEN 1 ELSE 0 END`).join(" + ");
+
 /**
  * Find existing fraud reports sharing ANY recipient identifier.
  * Read payment_handle, email, and phone directly from the transaction object.
@@ -89,18 +99,11 @@ export async function findReportedRecipients(
   if (!paymentHandle && !email && !phone) return [];
 
   const result = await pool.query<ReportedRecipientMatch>(
-    `SELECT d.*,
-       (
-         CASE WHEN $1::text IS NOT NULL AND btrim(d.payment_handle) = $1 THEN 1 ELSE 0 END
-         + CASE WHEN $2::text IS NOT NULL AND lower(btrim(d.email)) = $2 THEN 1 ELSE 0 END
-         + CASE WHEN $3::text IS NOT NULL AND regexp_replace(d.phone, '[^0-9]', '', 'g') = $3 THEN 1 ELSE 0 END
-       ) AS match_count
+    `SELECT d.*, (${recipientMatchScore}) AS match_count
      FROM data AS d
      WHERE d.is_fraud = 1
        AND (
-         ($1::text IS NOT NULL AND btrim(d.payment_handle) = $1)
-         OR ($2::text IS NOT NULL AND lower(btrim(d.email)) = $2)
-         OR ($3::text IS NOT NULL AND regexp_replace(d.phone, '[^0-9]', '', 'g') = $3)
+         ${recipientMatchConditions.join(" OR ")}
        )
      ORDER BY match_count DESC, d.id DESC`,
     [paymentHandle, email, phone],

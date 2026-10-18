@@ -11,9 +11,11 @@ const staticFiles = new Map([
 const MAX_BODY_BYTES = 64 * 1024;
 const jsonHeaders = { "Cache-Control": "no-store" };
 
-export function createHandler({ lookupBaseUrl = "http://127.0.0.1:3000", fetchImpl = fetch } = {}) {
+export function createHandler({ lookupBaseUrl = "http://127.0.0.1:3000", webBaseUrl = lookupBaseUrl, fetchImpl = fetch } = {}) {
   const lookupUrl = new URL("/api/reports/check-recipient", lookupBaseUrl);
   if (!["http:", "https:"].includes(lookupUrl.protocol)) throw new Error("SCAMCIRCUIT_API_URL must be an HTTP or HTTPS URL.");
+  const searchBaseUrl = new URL("/search", webBaseUrl);
+  if (!["http:", "https:"].includes(searchBaseUrl.protocol)) throw new Error("SCAMCIRCUIT_WEB_URL must be an HTTP or HTTPS URL.");
 
   return async function handle(request) {
     const url = new URL(request.url);
@@ -59,6 +61,14 @@ export function createHandler({ lookupBaseUrl = "http://127.0.0.1:3000", fetchIm
         if (!upstream.ok) return Response.json({ error: typeof result?.error === "string" ? result.error : "The recipient lookup failed. Please retry." }, { status: upstream.status, headers: jsonHeaders });
         if (transactionCheck) {
           if (!validateTransactionCheck(result)) return Response.json({ error: "ScamCircuit returned an invalid transaction decision. The payment was not completed." }, { status: 502, headers: jsonHeaders });
+          if (result.source === "reports") {
+            const investigationUrl = new URL(searchBaseUrl);
+            investigationUrl.searchParams.set("mode", "recipient");
+            for (const field of ["payment_handle", "email", "phone"]) {
+              if (payload[field] != null && String(payload[field]).trim()) investigationUrl.searchParams.set(field, String(payload[field]).trim());
+            }
+            return Response.json({ ...result, investigation_url: investigationUrl.href }, { headers: jsonHeaders });
+          }
           return Response.json(result, { headers: jsonHeaders });
         }
         if (!Array.isArray(result) || result.some((row) => !row || typeof row !== "object" || Array.isArray(row) || !Number.isInteger(row.match_count) || row.match_count < 1 || row.match_count > 3)) {

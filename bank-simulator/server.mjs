@@ -26,7 +26,10 @@ export function createSimulatorServer(options = {}) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.PORT || 3001);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("PORT must be between 1 and 65535.");
-  const server = createSimulatorServer({ lookupBaseUrl: process.env.SCAMCIRCUIT_API_URL || "http://127.0.0.1:3000" });
+  const server = createSimulatorServer({
+    lookupBaseUrl: process.env.SCAMCIRCUIT_API_URL || "http://127.0.0.1:3000",
+    webBaseUrl: process.env.SCAMCIRCUIT_WEB_URL || process.env.SCAMCIRCUIT_API_URL || "http://127.0.0.1:3000",
+  });
   server.on("error", (error) => {
     console.error(error.code === "EADDRINUSE" ? `Port ${port} is already in use. Choose another PORT.` : `Could not start simulator (${error.code || "UNKNOWN"}).`);
     process.exitCode = 1;
