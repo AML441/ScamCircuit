@@ -42,7 +42,9 @@ export async function predictFraud(payload: unknown): Promise<FraudPrediction> {
   const stdout = await new Promise<string>((resolve, reject) => {
     const child = execFile(python, [join(modelDir, "predict.py"), "--stdin"], {
       timeout: 10000, maxBuffer: 64 * 1024,
-    }, (error, output) => {
+    }, (error, output, stderr) => {
+      // Python reserves stdout for JSON and stderr for debug output/tracebacks.
+      if (stderr.trim()) console.error("Fraud model:", stderr.trim());
       if (error) reject(new Error("Fraud model unavailable. Check the Python environment and dependencies."));
       else resolve(output);
     });
