@@ -1,7 +1,7 @@
 import type { Pool } from "pg";
 
 export interface RecipientIdentifiers {
-  accountId: string | null;
+  paymentHandle: string | null;
   email: string | null;
   phone: string | null;
 }
@@ -27,44 +27,66 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function identifier(value: unknown, field: string): string | null {
-  if (value == null) return null;
+/** Accept an object or JSON text, including NaN values from Python exports. */
+export function parseRecipientLookupPayload(payload: unknown): Record<string, unknown> {
+  let parsed = payload;
+  // Also support a JSON-encoded string containing the object.
+  for (let depth = 0; typeof parsed === "string" && depth < 2; depth++) {
+    try {
+      // Match complete quoted strings first so literal "NaN" text stays intact.
+      const normalized = parsed.replace(/"(?:\\.|[^"\\])*"|\bNaN\b/g, (token) => token === "NaN" ? "null" : token);
+      parsed = JSON.parse(normalized);
+    } catch {
+      throw new RecipientLookupValidationError("Provide valid JSON containing a transaction object.");
+    }
+  }
+  if (!isObject(parsed)) {
+    throw new RecipientLookupValidationError("Provide a transaction object with top-level payment_handle, email, and/or phone fields.");
+  }
+  return parsed;
+}
+
+function identifier(value: unknown, field: string, allowNumber = false): string | null {
+  if (value == null || (typeof value === "number" && Number.isNaN(value))) return null;
+  if (allowNumber && typeof value === "number") {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw new RecipientLookupValidationError(`${field} must be text or a nonnegative safe integer. Send long identifiers as strings.`);
+    }
+    value = String(value);
+  }
   if (typeof value !== "string") {
-    throw new RecipientLookupValidationError(`recipient.${field} must be a string.`);
+    throw new RecipientLookupValidationError(`${field} must be a string${allowNumber ? " or number" : ""}.`);
   }
   const trimmed = value.trim();
   if (trimmed.length > 2000) {
-    throw new RecipientLookupValidationError(`recipient.${field} must be at most 2,000 characters.`);
+    throw new RecipientLookupValidationError(`${field} must be at most 2,000 characters.`);
   }
   return trimmed || null;
 }
 
 export function getRecipientIdentifiers(payload: unknown): RecipientIdentifiers {
-  if (!isObject(payload) || !isObject(payload.recipient)) {
-    throw new RecipientLookupValidationError("Provide a transaction payload with a recipient object.");
-  }
-  const recipient = payload.recipient;
-  const accountId = identifier(recipient.account_id, "account_id");
-  const email = identifier(recipient.email, "email")?.toLowerCase() || null;
-  const rawPhone = identifier(recipient.phone, "phone");
+  const transaction = parseRecipientLookupPayload(payload);
+  const paymentHandle = identifier(transaction.payment_handle, "payment_handle");
+  const email = identifier(transaction.email, "email")?.toLowerCase() || null;
+  const rawPhone = identifier(transaction.phone, "phone", true);
   const phone = rawPhone?.replace(/[^0-9]/g, "") || null;
   if (rawPhone && (!phone || !/^\+?[0-9\s().-]+$/.test(rawPhone) || phone.length > 15)) {
-    throw new RecipientLookupValidationError("recipient.phone must be a phone number with at most 15 digits, optionally including a country code and formatting.");
+    throw new RecipientLookupValidationError("phone must be a phone number with at most 15 digits, optionally including a country code and formatting.");
   }
-  return { accountId, email, phone };
+  return { paymentHandle, email, phone };
 }
 
 /**
  * Find existing fraud reports sharing ANY recipient identifier.
- * account_id maps to payment_handle in the current report schema.
+ * Read payment_handle, email, and phone directly from the transaction object.
  * Sort by the number of matching identifiers, then by newest report ID.
  */
 export async function findReportedRecipients(
   pool: Pick<Pool, "query">,
   payload: unknown,
 ): Promise<ReportedRecipientMatch[]> {
-  const { accountId, email, phone } = getRecipientIdentifiers(payload);
-  if (!accountId && !email && !phone) return [];
+  const { paymentHandle, email, phone } = getRecipientIdentifiers(payload);
+  if (!paymentHandle && !email && !phone) return [];
 
   const result = await pool.query<ReportedRecipientMatch>(
     `SELECT d.*,
@@ -81,7 +103,7 @@ export async function findReportedRecipients(
          OR ($3::text IS NOT NULL AND regexp_replace(d.phone, '[^0-9]', '', 'g') = $3)
        )
      ORDER BY match_count DESC, d.id DESC`,
-    [accountId, email, phone],
+    [paymentHandle, email, phone],
   );
   return result.rows;
 }

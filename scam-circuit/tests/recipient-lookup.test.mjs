@@ -2,23 +2,20 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadTs } from "./helpers/load-ts.mjs";
 
-const { getRecipientIdentifiers, findReportedRecipients, RecipientLookupValidationError } = loadTs("lib/find-reported-recipients.ts");
+const { getRecipientIdentifiers, parseRecipientLookupPayload, findReportedRecipients, RecipientLookupValidationError } = loadTs("lib/find-reported-recipients.ts");
 
 const transaction = {
-  transaction_id: "txn_839201",
-  timestamp: "2026-10-17T14:32:18Z",
-  amount: 250,
-  currency: "USD",
-  sender_id: "usr_10293",
-  recipient: {
-    account_id: "acct_2002",
-    name: "Bob Smith",
-    email: "bob@example.com",
-    phone: "+13015550189",
-  },
-  payment_method: "ZELLE",
-  description: "Concert tickets",
+  transaction_amount: NaN, hour_of_day: 1.0, is_weekend: 1.0,
+  num_items: 2.0, customer_age: 20.0, prev_transactions: 2.0,
+  distance_from_home: 43.37, device_type: 2.0, network_quality: 67.9,
+  is_first_transaction: 1.0, store_type: 1.0, velocity_score: NaN,
+  id: 1.5, payment_handle: "acct_2002", email: "bob@example.com",
+  phone: "+13015550189", website_url: "google.com", other_contact: NaN,
+  date_occurred: NaN, app_contact: "Messages", payment_method: "Zelle",
+  description: NaN,
 };
+
+const pythonJson = '{"transaction_amount": NaN, "hour_of_day": 1.0, "is_weekend": 1.0, "num_items": 2.0, "customer_age": 20.0, "prev_transactions": 2.0, "distance_from_home": 43.37, "device_type": 2.0, "network_quality": 67.9, "is_first_transaction": 1.0, "store_type": 1.0, "velocity_score": NaN, "id": 1.5, "payment_handle": "98", "email": "hi@gmail.com", "phone": NaN, "website_url": "google.com", "other_contact": NaN, "date_occurred": NaN, "app_contact": "Messages", "payment_method": "Zelle", "description": NaN }';
 
 function database(rows = [], failure) {
   const calls = [];
@@ -46,17 +43,48 @@ function request(payload = transaction) {
   });
 }
 
-test("extracts only recipient identifiers from the supplied transaction", () => {
+test("extracts only the three top-level identifiers from the flat transaction", () => {
   assert.deepEqual(getRecipientIdentifiers(transaction), {
-    accountId: "acct_2002", email: "bob@example.com", phone: "13015550189",
+    paymentHandle: "acct_2002", email: "bob@example.com", phone: "13015550189",
   });
 });
 
-test("normalizes surrounding whitespace, email case and phone formatting without guessing country codes or account case", () => {
-  assert.deepEqual(getRecipientIdentifiers({ recipient: {
-    account_id: " ACCT_2002 ", email: " BOB@EXAMPLE.COM ", phone: " +1 (301) 555-0189 ",
-  } }), { accountId: "ACCT_2002", email: "bob@example.com", phone: "13015550189" });
-  assert.equal(getRecipientIdentifiers({ recipient: { phone: "301-555-0189" } }).phone, "3015550189");
+test("accepts Python JSON text with a string handle and ignores NaN", async () => {
+  assert.deepEqual(getRecipientIdentifiers(pythonJson), {
+    paymentHandle: "98", email: "hi@gmail.com", phone: null,
+  });
+  const mock = database();
+  await findReportedRecipients(mock.pool, pythonJson);
+  assert.deepEqual(mock.calls[0].values, ["98", "hi@gmail.com", null]);
+});
+
+test("preserves string handles and leading zeros, supports numeric phones, and skips missing identifiers", async () => {
+  assert.deepEqual(getRecipientIdentifiers({ payment_handle: "0098", email: "hi@gmail.com", phone: 13015550189.0 }), {
+    paymentHandle: "0098", email: "hi@gmail.com", phone: "13015550189",
+  });
+  assert.equal(getRecipientIdentifiers({ payment_handle: "0" }).paymentHandle, "0");
+  const mock = database();
+  assert.deepEqual(await findReportedRecipients(mock.pool, { payment_handle: NaN, email: null, phone: NaN }), []);
+  assert.equal(mock.calls.length, 0);
+});
+
+test("NaN conversion preserves quoted values and escaped quotation marks", () => {
+  const data = { payment_handle: "NaN", email: "NaN@example.com", phone: null, description: 'Quoted "NaN" and a slash \\ remain unchanged' };
+  const raw = JSON.stringify(data).replace('"phone":null', '"phone":NaN');
+  assert.deepEqual(parseRecipientLookupPayload(raw), data);
+  assert.equal(getRecipientIdentifiers(raw).paymentHandle, "NaN");
+});
+
+test("flat identifiers take precedence over unrelated nested recipient data", () => {
+  const result = getRecipientIdentifiers({ ...transaction, recipient: { account_id: "ignored", email: "ignored@example.com", phone: "+19999999999" } });
+  assert.deepEqual(result, { paymentHandle: "acct_2002", email: "bob@example.com", phone: "13015550189" });
+});
+
+test("normalizes surrounding whitespace, email case and phone formatting without guessing country codes or handle case", () => {
+  assert.deepEqual(getRecipientIdentifiers({
+    payment_handle: " ACCT_2002 ", email: " BOB@EXAMPLE.COM ", phone: " +1 (301) 555-0189 ",
+  }), { paymentHandle: "ACCT_2002", email: "bob@example.com", phone: "13015550189" });
+  assert.equal(getRecipientIdentifiers({ phone: "301-555-0189" }).phone, "3015550189");
 });
 
 test("matches payment_handle, email or phone in flagged reports with parameterized exact comparisons", async () => {
@@ -96,13 +124,13 @@ test("query ranks three matches before two before one, breaking ties by descendi
 
 test("each identifier can be supplied independently and missing identifiers stay null", async () => {
   const cases = [
-    [{ account_id: "acct_2002" }, ["acct_2002", null, null]],
+    [{ payment_handle: "acct_2002" }, ["acct_2002", null, null]],
     [{ email: "BOB@EXAMPLE.COM" }, [null, "bob@example.com", null]],
     [{ phone: "+1 (301) 555-0189" }, [null, null, "13015550189"]],
   ];
-  for (const [recipient, values] of cases) {
+  for (const [payload, values] of cases) {
     const mock = database([{ id: "1", match_count: 1, is_fraud: "1" }]);
-    assert.equal((await findReportedRecipients(mock.pool, { recipient })).length, 1);
+    assert.equal((await findReportedRecipients(mock.pool, payload)).length, 1);
     assert.deepEqual(mock.calls[0].values, values);
   }
 });
@@ -112,27 +140,29 @@ test("returns [] for no matching reports, and skips the DB when identifiers are 
   assert.deepEqual(await findReportedRecipients(mock.pool, transaction), []);
   assert.equal(mock.calls.length, 1);
   mock.calls.length = 0;
-  for (const recipient of [{}, { account_id: "  ", email: null, phone: "" }, { name: "Bob Smith" }]) {
-    assert.deepEqual(await findReportedRecipients(mock.pool, { recipient }), []);
+  for (const payload of [{}, { payment_handle: "  ", email: null, phone: "" }, { name: "Bob Smith" }]) {
+    assert.deepEqual(await findReportedRecipients(mock.pool, payload), []);
   }
   assert.equal(mock.calls.length, 0);
 });
 
 test("rejects malformed recipient inputs before querying the DB", async () => {
   const mock = database();
-  for (const payload of [null, [], {}, { recipient: null }, { recipient: [] },
-    { recipient: { account_id: 2002 } }, { recipient: { email: {} } },
-    { recipient: { phone: "not a phone" } }, { recipient: { phone: "301call5550189" } },
-    { recipient: { account_id: "x".repeat(2001) } }]) {
+  for (const payload of [null, [], true, "not JSON", "[]",
+    { payment_handle: {} }, { email: {} }, { email: 123 },
+    { phone: "not a phone" }, { phone: "301call5550189" },
+    { payment_handle: "x".repeat(2001) },
+    { payment_handle: Infinity }, { payment_handle: 1.5 }, { payment_handle: 98 }, { payment_handle: 0 },
+    { phone: -1 }, { phone: 1.5 }, { phone: Number.MAX_SAFE_INTEGER + 1 }]) {
     await assert.rejects(findReportedRecipients(mock.pool, payload), RecipientLookupValidationError);
   }
   assert.equal(mock.calls.length, 0);
 });
 
-test("SQL-like account IDs are sent as literal parameters", async () => {
+test("SQL-like payment handles are sent as literal parameters", async () => {
   const account = "' OR 1=1; DROP TABLE data; --";
   const mock = database();
-  await findReportedRecipients(mock.pool, { recipient: { account_id: account } });
+  await findReportedRecipients(mock.pool, { payment_handle: account });
   assert.equal(mock.calls[0].sql.includes(account), false);
   assert.deepEqual(mock.calls[0].values, [account, null, null]);
 });
@@ -152,15 +182,36 @@ test("API returns plain report arrays, including [] when there are no matches", 
   }
 });
 
-test("API rejects malformed JSON, invalid recipient objects, and wrong content types", async () => {
+test("API accepts raw Python NaN values and JSON-encoded strings containing the flat payload", async () => {
+  const rows = [{ id: "1", match_count: 1, is_fraud: "1", email: "hi@gmail.com" }];
+  for (const body of [pythonJson, JSON.stringify(pythonJson)]) {
+    const mock = database(rows);
+    const response = await post(mock.pool)(new Request("http://localhost/api/reports/check-recipient", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body,
+    }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), rows);
+    assert.deepEqual(mock.calls[0].values, ["98", "hi@gmail.com", null]);
+  }
+});
+
+test("API rejects malformed JSON, invalid transaction objects, and wrong content types", async () => {
   const mock = database();
   const handle = post(mock.pool);
   const badJson = new Request("http://localhost/api/reports/check-recipient", { method: "POST", headers: { "content-type": "application/json" }, body: "{" });
   assert.equal((await handle(badJson)).status, 400);
-  assert.equal((await handle(request({ recipient: [] }))).status, 400);
-  assert.equal((await handle(request({ recipient: { email: [] } }))).status, 400);
+  assert.equal((await handle(request([]))).status, 400);
+  assert.equal((await handle(request({ email: [] }))).status, 400);
   const badType = new Request("http://localhost/api/reports/check-recipient", { method: "POST", body: "{}" });
   assert.equal((await handle(badType)).status, 415);
+  assert.equal(mock.calls.length, 0);
+});
+
+test("API rejects numeric payment handles with 400 before querying", async () => {
+  const mock = database();
+  const response = await post(mock.pool)(request({ payment_handle: 98.0, email: "hi@gmail.com" }));
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, "payment_handle must be a string.");
   assert.equal(mock.calls.length, 0);
 });
 

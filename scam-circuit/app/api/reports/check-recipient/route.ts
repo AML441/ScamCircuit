@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     } finally {
       reader.releaseLock();
     }
-    payload = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    payload = Buffer.concat(chunks).toString("utf8");
   } catch {
     return Response.json({ error: "Provide valid JSON." }, { status: 400, headers });
   }
